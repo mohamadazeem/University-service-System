@@ -1,0 +1,174 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f5f6fa;
+}
+
+nav {
+    background-color: #1e3a8a;
+    color: white;
+    padding: 15px 30px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+nav h2 {
+    margin: 0;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 15px;
+}
+.home {
+    padding: 40px;
+    text-align: center;
+}
+
+.hero {
+    padding: 60px 20px;
+}
+
+.hero h1 {
+    font-size: 40px;
+    margin-bottom: 20px;
+}
+
+.hero p {
+    font-size: 18px;
+    color: #555;
+}
+
+.hero-buttons {
+    margin-top: 30px;
+}
+
+.hero-buttons button {
+    padding: 12px 25px;
+    margin: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: #1e3a8a;
+    color: white;
+    font-size: 16px;
+}
+
+.hero-buttons button:hover {
+    background-color: #172554;
+}
+/* Dashboard */
+
+.dashboard {
+    padding: 40px;
+}
+
+.dashboard-header {
+    margin-bottom: 30px;
+}
+
+.dashboard-header h1 {
+    margin-bottom: 10px;
+}
+
+.dashboard-header p {
+    color: #666;
+}
+
+
+/* Dashboard Cards */
+
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.dashboard-card {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-card h3 {
+    margin-top: 0;
+    color: #555;
+}
+
+.dashboard-card h2 {
+    font-size: 32px;
+    margin-bottom: 0;
+}
+
+
+/* Quick Actions */
+
+.quick-actions {
+    margin-bottom: 40px;
+}
+
+.action-container {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.action-container button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    background-color: #1e3a8a;
+    color: white;
+    cursor: pointer;
+}
+
+.action-container button:hover {
+    background-color: #172554;
+}
+
+
+/* Recent Requests */
+
+.recent-requests {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+}
+
+.recent-requests table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.recent-requests th,
+.recent-requests td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+
+/* Status */
+
+.status {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 13px;
+}
+
+.pending {
+    background-color: #fff3cd;
+}
+
+.approved {
+    background-color: #d1ecf1;
+}
+
+.completed {
+    background-color: #d4edda;
+}
