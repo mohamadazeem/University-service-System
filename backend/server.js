@@ -3,6 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
+const requestRoutes = require("./routes/requestRoutes");
 const protect = require("./middleware/authMiddleware");
 
 dotenv.config();
@@ -16,6 +17,8 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+//Request
+app.use("/api/requests", requestRoutes);
 
 app.get("/", (req, res) => {
     res.send("University Service Management API is running!");

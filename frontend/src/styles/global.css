@@ -172,3 +172,208 @@ nav a {
 .completed {
     background-color: #d4edda;
 }
+/* Services Page */
+
+.services-page {
+    padding: 40px;
+}
+
+.services-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.services-header h1 {
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.services-header p {
+    color: #666;
+    font-size: 17px;
+}
+
+
+/* Services Grid */
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+
+/* Service Card */
+
+.service-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.service-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+
+/* Service Icon */
+
+.service-icon {
+    font-size: 45px;
+    margin-bottom: 15px;
+}
+
+.service-card h2 {
+    font-size: 21px;
+    margin-bottom: 12px;
+}
+
+.service-card p {
+    color: #666;
+    line-height: 1.6;
+    min-height: 70px;
+}
+
+
+/* Request Button */
+
+.service-button {
+    margin-top: 15px;
+    padding: 11px 20px;
+
+    border: none;
+    border-radius: 6px;
+
+    background-color: #1e3a8a;
+    color: white;
+
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.service-button:hover {
+    background-color: #172554;
+}
+/* Mobile */
+
+@media (max-width: 900px) {
+
+    .services-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+
+@media (max-width: 600px) {
+
+    .services-page {
+        padding: 20px;
+    }
+
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard {
+        padding: 20px;
+    }
+}
+/* Request Service Page */
+
+.request-page {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+}
+
+.request-container {
+    background: white;
+    width: 100%;
+    max-width: 650px;
+    padding: 35px;
+    border-radius: 12px;
+
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.request-container h1 {
+    margin-bottom: 10px;
+}
+
+.request-subtitle {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+
+/* Form */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+
+    border: 1px solid #ccc;
+    border-radius: 6px;
+
+    font-size: 15px;
+
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #1e3a8a;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+
+/* Submit Button */
+
+.submit-request-button {
+    width: 100%;
+
+    padding: 13px;
+
+    border: none;
+    border-radius: 6px;
+
+    background-color: #1e3a8a;
+    color: white;
+
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.submit-request-button:hover {
+    background-color: #172554;
+}

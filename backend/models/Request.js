@@ -9,9 +9,14 @@ const requestSchema = new mongoose.Schema(
         },
 
         service: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Service",
+            type: String,
             required: true
+        },
+
+        studentId: {
+            type: String,
+            required: true,
+            trim: true
         },
 
         description: {
