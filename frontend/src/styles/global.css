@@ -377,3 +377,158 @@ nav a {
 .submit-request-button:hover {
     background-color: #172554;
 }
+.requests-page {
+    padding: 40px;
+}
+
+.requests-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.requests-container h1 {
+    margin-bottom: 10px;
+}
+
+.requests-subtitle {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.requests-table-container {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+    overflow-x: auto;
+}
+
+.requests-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.requests-table th,
+.requests-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.requests-table th {
+    background-color: #f5f5f5;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-approved {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-rejected {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-completed {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.error-message {
+    color: #dc2626;
+    font-weight: bold;
+}
+
+.no-requests {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+}
+.profile-page {
+    padding: 40px;
+}
+
+.profile-container {
+    max-width: 700px;
+    margin: 0 auto;
+    background: white;
+    padding: 35px;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.profile-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background-color: #1e3a8a;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.profile-header h1 {
+    margin: 0 0 5px 0;
+}
+
+.profile-header p {
+    margin: 0;
+    color: #666;
+}
+
+.profile-details {
+    margin-top: 30px;
+}
+
+.profile-item {
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.profile-item label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #555;
+}
+
+.profile-item p {
+    margin: 0;
+    font-size: 16px;
+}
+.logout-button {
+    border: none;
+    background: transparent;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.logout-button:hover {
+    text-decoration: underline;
+}

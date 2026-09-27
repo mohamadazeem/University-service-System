@@ -1,7 +1,9 @@
 import { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 function Login() {
+    const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState("");
@@ -19,7 +21,10 @@ function Login() {
             });
 
             localStorage.setItem("token", response.data.token);
+            localStorage.setItem("user", JSON.stringify(response.data.user));
+            window.dispatchEvent(new Event("auth-change"));
             setMessage("Login successful");
+            navigate("/dashboard");
         } catch (error) {
             setMessage(error.response?.data?.message || "Login failed");
         } finally {

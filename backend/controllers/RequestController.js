@@ -55,6 +55,25 @@ const createRequest = async (req, res) => {
 };
 
 
+const getMyRequests = async (req, res) => {
+    try {
+        const requests = await Request.find({
+            student: req.user.id
+        }).sort({ createdAt: -1 });
+
+        res.status(200).json({
+            requests
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: "Failed to fetch requests",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    createRequest
+    createRequest,
+    getMyRequests
 };
