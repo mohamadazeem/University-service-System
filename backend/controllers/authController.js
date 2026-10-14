@@ -1,149 +1,55 @@
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
-// Register
+const v = require("../utils/validation");
 const registerUser = async (req, res) => {
-    try {
-        const { name, email, password, studentId, phone, role } = req.body || {};
-
-        // Check required fields
-        if (
-            typeof name !== "string" ||
-            !name.trim() ||
-            typeof email !== "string" ||
-            !email.trim() ||
-            typeof password !== "string" ||
-            !password
-        ) {
-            return res.status(400).json({
-                message: "Please provide name, email and password"
-            });
-        }
-
-        const normalizedEmail = email.trim().toLowerCase();
-        const normalizedStudentId =
-            typeof studentId === "string" ? studentId.trim() : "";
-
-        // Check if user already exists
-        const existingUser = await User.findOne({ email: normalizedEmail });
-
-        if (existingUser) {
-            return res.status(409).json({
-                message: "User already exists"
-            });
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create user
-        const user = await User.create({
-            name: name.trim(),
-            email: normalizedEmail,
-            password: hashedPassword,
-            ...(normalizedStudentId && { studentId: normalizedStudentId }),
-            ...(typeof phone === "string" && phone.trim() && { phone: phone.trim() }),
-            role: role || "student"
-        });
-
-        res.status(201).json({
-            message: "Registration successful",
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
-        });
-
-    } catch (error) {
-        if (error.code === 11000) {
-            const duplicateField = Object.keys(error.keyPattern || {})[0];
-            const message = duplicateField === "studentId"
-                ? "Student ID already exists"
-                : "User already exists";
-
-            return res.status(409).json({ message });
-        }
-
-        console.error("Registration failed:", error);
-        res.status(500).json({
-            message: "Registration failed due to a server error"
-        });
-    }
+  const input = req.body || {};
+  const name = v.text(input.name, "Name", 100);
+  const email = v.email(input.email);
+  const password = v.password(input.password);
+  const studentId = v.text(input.studentId, "Student ID", 50, false);
+  const phone = v.text(input.phone, "Phone", 30, false);
+  if (await User.exists({ email })) v.fail("Email already registered", 409);
+  // Ignore supplied roles and arbitrary account fields on public registration.
+  const user = await User.create({
+    name,
+    email,
+    password: await bcrypt.hash(password, 12),
+    role: "student",
+    ...(studentId && { studentId }),
+    ...(phone && { phone }),
+  });
+  res
+    .status(201)
+    .json({
+      message: "Registration successful. You can now sign in.",
+      user: { id: user._id, name, email, role: user.role },
+    });
 };
-
-
-// Login
 const loginUser = async (req, res) => {
-    try {
-        const { email, password } = req.body || {};
-
-        if (
-            typeof email !== "string" ||
-            !email.trim() ||
-            typeof password !== "string" ||
-            !password
-        ) {
-            return res.status(400).json({
-                message: "Please provide email and password"
-            });
-        }
-
-        // Find user
-        const user = await User.findOne({ email: email.trim().toLowerCase() });
-
-        if (!user) {
-            return res.status(401).json({
-                message: "Invalid email or password"
-            });
-        }
-
-        // Check password
-        const passwordMatch = await bcrypt.compare(
-            password,
-            user.password
-        );
-
-        if (!passwordMatch) {
-            return res.status(401).json({
-                message: "Invalid email or password"
-            });
-        }
-
-        // Create JWT
-        const token = jwt.sign(
-            {
-                id: user._id,
-                role: user.role
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "1d"
-            }
-        );
-
-        res.json({
-            message: "Login successful",
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
-        });
-
-    } catch (error) {
-        console.error("Login failed:", error);
-        res.status(500).json({
-            message: "Login failed due to a server error"
-        });
-    }
+  const email = v.email(req.body?.email);
+  const password = v.text(req.body?.password, "Password", 200);
+  const user = await User.findOne({ email }).select("+password");
+  if (
+    !user ||
+    user.active === false ||
+    !(await bcrypt.compare(password, user.password))
+  )
+    v.fail("Invalid email or password", 401);
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "8h",
+    algorithm: "HS256",
+  });
+  res.json({
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      studentId: user.studentId,
+      phone: user.phone,
+    },
+  });
 };
-
-module.exports = {
-    registerUser,
-    loginUser
-};
+module.exports = { registerUser, loginUser };

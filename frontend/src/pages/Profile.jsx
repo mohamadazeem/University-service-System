@@ -1,62 +1,33 @@
-import { useState } from "react";
-
-function Profile() {
-    const [user] = useState(() => {
-        const savedUser = localStorage.getItem("user");
-
-        return savedUser ? JSON.parse(savedUser) : null;
-    });
-
-    if (!user) {
-        return (
-            <div className="profile-page">
-                <div className="profile-container">
-                    <h1>Profile</h1>
-                    <p>Please login to view your profile.</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="profile-page">
-
-            <div className="profile-container">
-
-                <div className="profile-header">
-                    <div className="profile-avatar">
-                        {user.name?.charAt(0).toUpperCase()}
-                    </div>
-
-                    <div>
-                        <h1>{user.name}</h1>
-                        <p>Student Account</p>
-                    </div>
-                </div>
-
-                <div className="profile-details">
-
-                    <div className="profile-item">
-                        <label>Name</label>
-                        <p>{user.name}</p>
-                    </div>
-
-                    <div className="profile-item">
-                        <label>Email</label>
-                        <p>{user.email}</p>
-                    </div>
-
-                    <div className="profile-item">
-                        <label>Role</label>
-                        <p>{user.role || "student"}</p>
-                    </div>
-
-                </div>
-
-            </div>
-
+import useAuth from "../auth/useAuth";
+export default function Profile() {
+  const { user } = useAuth();
+  return (
+    <main className="page narrow-page">
+      <section className="panel form-panel">
+        <div className="profile-heading">
+          <span className="avatar large-avatar">{user.name.slice(0, 1)}</span>
+          <div>
+            <p className="eyebrow">{user.role.toUpperCase()} ACCOUNT</p>
+            <h1>{user.name}</h1>
+          </div>
         </div>
-    );
+        <dl className="detail-list">
+          <dt>Name</dt>
+          <dd>{user.name}</dd>
+          <dt>Email</dt>
+          <dd>{user.email}</dd>
+          <dt>Role</dt>
+          <dd>{user.role}</dd>
+          <dt>Student ID</dt>
+          <dd>{user.studentId || "Not provided"}</dd>
+          <dt>Phone</dt>
+          <dd>{user.phone || "Not provided"}</dd>
+        </dl>
+        <p className="muted">
+          Contact your university administrator to update your account
+          information.
+        </p>
+      </section>
+    </main>
+  );
 }
-
-export default Profile;
