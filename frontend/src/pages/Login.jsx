@@ -26,7 +26,11 @@ function Login() {
             setMessage("Login successful");
             navigate("/dashboard");
         } catch (error) {
-            setMessage(error.response?.data?.message || "Login failed");
+            setMessage(
+                axios.isAxiosError(error) && !error.response
+                    ? "Cannot reach the login server at http://localhost:5000. Make sure the backend is running."
+                    : error.response?.data?.message || "Login failed. Please try again."
+            );
         } finally {
             setIsSubmitting(false);
         }

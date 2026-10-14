@@ -33,8 +33,9 @@ function Register() {
         } catch (error) {
 
             alert(
-                error.response?.data?.message ||
-                "Registration failed"
+                axios.isAxiosError(error) && !error.response
+                    ? "Cannot reach the registration server at http://localhost:5000. Make sure the backend is running."
+                    : error.response?.data?.message || "Registration failed. Please try again."
             );
         }
     };

@@ -24,7 +24,11 @@ const userSchema = new mongoose.Schema(
         studentId: {
             type: String,
             unique: true,
-            sparse: true
+            sparse: true,
+            trim: true,
+            set: value => typeof value === "string"
+                ? value.trim() || undefined
+                : value
         },
 
         phone: {

@@ -7,7 +7,6 @@ const requestRoutes = require("./routes/RequestRoutes");
 const protect = require("./middleware/authMiddleware");
 
 dotenv.config();
-console.log("JWT SECRET:", process.env.JWT_SECRET);
 connectDB();
 
 const app = express();
