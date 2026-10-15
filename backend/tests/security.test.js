@@ -292,3 +292,34 @@ test("unexpected errors and malformed JSON never expose internal details", async
   });
   assert.equal(malformed.status, 400);
 });
+
+test("portal login checks stored roles before issuing tokens and preserves password whitespace", async (t) => {
+  const password = " valid-password ";
+  const hashed = await bcrypt.hash(password, 4);
+  t.mock.method(User, "findOne", ({ email }) => ({
+    select: async () => Object.values(accounts).find((account) => account.email === email)
+      ? { ...Object.values(accounts).find((account) => account.email === email), password: hashed }
+      : null,
+  }));
+  for (const [email, portal, status] of [
+    [accounts[studentId].email, "student", 200],
+    [accounts[adminId].email, "admin", 200],
+    [accounts[studentId].email, "admin", 403],
+    [accounts[adminId].email, "student", 403],
+    [accounts[studentId].email, "superuser", 400],
+  ]) {
+    const result = await call("/api/auth/login", { method: "POST", data: { email, password, portal, role: "admin" } });
+    assert.equal(result.status, status);
+    assert.equal(typeof result.body.token, status === 200 ? "string" : "undefined");
+  }
+  const invalid = await call("/api/auth/login", { method: "POST", data: { email: accounts[studentId].email, password: "wrong-password", portal: "student" } });
+  assert.equal(invalid.status, 401);
+  assert.equal(invalid.body.token, undefined);
+});
+
+test("admin cannot access student request endpoints", async (t) => {
+  mockAccounts(t);
+  assert.equal((await call("/api/requests/my", { user: adminId })).status, 403);
+  assert.equal((await call("/api/requests", { user: adminId, method: "POST", data: {} })).status, 403);
+  assert.equal((await call("/api/requests/my")).status, 401);
+});

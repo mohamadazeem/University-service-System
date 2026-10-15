@@ -107,7 +107,7 @@ export default function Register() {
               {success && (
                 <>
                   {" "}
-                  <Link to="/login">Sign in →</Link>
+                  <Link to="/student/login">Sign in →</Link>
                 </>
               )}
             </div>
@@ -117,7 +117,7 @@ export default function Register() {
           </button>
         </form>
         <p className="auth-footer">
-          Already registered? <Link to="/login">Sign in</Link>
+          Already registered? <Link to="/student/login">Sign in</Link>
         </p>
       </section>
     </main>

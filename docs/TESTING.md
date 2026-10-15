@@ -5,12 +5,12 @@
 | Frontend production build                  | Passed                                                                               |
 | Frontend ESLint                            | Passed                                                                               |
 | Backend module loading                     | Passed                                                                               |
-| Ten backend HTTP/security/validation tests | Passed                                                                               |
+| 14 backend security/validation/startup tests | Passed                                                                             |
 | MongoDB connectivity                       | Passed outside restricted sandbox                                                    |
 | Real MongoDB integration workflow          | Passed                                                                               |
 | Existing records                           | Two users and one request existed before testing; test cleanup targeted only new IDs |
-| Browser interaction and console checks     | Not run: no browser-control surface available                                        |
-| Desktop/mobile visual screenshots          | Not captured: same browser limitation                                                |
+| Login browser workflows                    | Two Chrome tests passed; no uncaught page errors in the real login/request workflow   |
+| Desktop/tablet/mobile login layouts         | Verified at 1280, 768 and 390 pixels; screenshots captured                             |
 | Actual rubric PDF review                   | Not possible: PDF not attached                                                       |
 
 Backend and frontend startup checks also passed: the updated API runs on port 5001, the frontend on 5173, and the Vite proxy returns the six persisted services. Unauthenticated admin access returns HTTP 401. The original six service offerings were imported without modifying existing records.

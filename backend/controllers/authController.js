@@ -28,7 +28,12 @@ const registerUser = async (req, res) => {
 };
 const loginUser = async (req, res) => {
   const email = v.email(req.body?.email);
-  const password = v.text(req.body?.password, "Password", 200);
+  const password = req.body?.password;
+  if (typeof password !== "string" || !password.length || password.length > 200)
+    v.fail("Provide a password of at most 200 characters");
+  const portal = req.body?.portal === undefined
+    ? undefined
+    : v.choice(req.body.portal, ["student", "admin"], "portal");
   const user = await User.findOne({ email }).select("+password");
   if (
     !user ||
@@ -36,6 +41,9 @@ const loginUser = async (req, res) => {
     !(await bcrypt.compare(password, user.password))
   )
     v.fail("Invalid email or password", 401);
+  // Portal selection restricts login; only the stored database role grants access.
+  if (portal && user.role !== portal)
+    v.fail(`This account does not have ${portal === "admin" ? "administrator" : "student"} access. Choose the correct portal.`, 403);
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "8h",
     algorithm: "HS256",

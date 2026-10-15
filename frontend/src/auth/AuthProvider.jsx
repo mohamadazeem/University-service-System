@@ -49,8 +49,8 @@ export default function AuthProvider({ children }) {
       window.removeEventListener("storage", sync);
     };
   }, [version]);
-  const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
+  const login = async (email, password, portal) => {
+    const { data } = await api.post("/auth/login", { email, password, portal });
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);

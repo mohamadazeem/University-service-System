@@ -101,9 +101,9 @@ export default function AdminLayout() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <Link to="/dashboard" title="Student portal">
+          <Link to="/services" title="Service catalogue">
             <span aria-hidden="true">↗</span>
-            <span className="sidebar-label">Student portal</span>
+            <span className="sidebar-label">Service catalogue</span>
           </Link>
           <button
             onClick={() => setCollapsed(!collapsed)}

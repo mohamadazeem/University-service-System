@@ -4,7 +4,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  if (location.pathname.startsWith("/admin")) return null;
+  if (location.pathname.startsWith("/admin") || ["/login", "/student/login"].includes(location.pathname)) return null;
   return (
     <header className="site-header">
       <Link className="site-brand" to="/">
@@ -16,8 +16,10 @@ export default function Navbar() {
         <NavLink to="/services">Services</NavLink>
         {user ? (
           <>
-            <NavLink to="/dashboard">Dashboard</NavLink>
-            <NavLink to="/my-requests">My requests</NavLink>
+            {user.role === "student" && <>
+              <NavLink to="/dashboard">Dashboard</NavLink>
+              <NavLink to="/my-requests">My requests</NavLink>
+            </>}
             <NavLink to="/profile">Profile</NavLink>
             {user.role === "admin" && (
               <NavLink to="/admin">Admin portal</NavLink>

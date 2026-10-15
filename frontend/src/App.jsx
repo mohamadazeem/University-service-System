@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import PortalSelection from "./pages/PortalSelection";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Services from "./pages/Services";
@@ -22,16 +23,17 @@ export default function App() {
         <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/admin/login" element={<Login adminOnly />} />
+          <Route path="/login" element={<PortalSelection />} />
+          <Route path="/student/login" element={<Login key="student" />} />
+          <Route path="/admin/login" element={<Login key="admin" adminOnly />} />
           <Route path="/register" element={<Register />} />
           <Route path="/services" element={<Services />} />
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/my-requests" element={<MyRequests />} />
             <Route path="/profile" element={<Profile />} />
           </Route>
           <Route element={<ProtectedRoute roles={["student"]} />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/my-requests" element={<MyRequests />} />
             <Route path="/request-service" element={<RequestService />} />
           </Route>
           <Route element={<ProtectedRoute roles={["admin"]} />}>

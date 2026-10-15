@@ -44,6 +44,7 @@ test(
       const login = await call("/auth/login", "POST", {
         email: admin.email,
         password,
+        portal: "admin",
       });
       assert.equal(login.status, 200);
       const adminToken = login.token;
@@ -67,8 +68,16 @@ test(
       const studentLogin = await call("/auth/login", "POST", {
         email: register.user.email,
         password,
+        portal: "student",
       });
       const studentToken = studentLogin.token;
+      assert.equal(studentLogin.status, 200);
+      for (const [email, portal] of [[admin.email, "student"], [register.user.email, "admin"]]) {
+        const denied = await call("/auth/login", "POST", { email, password, portal });
+        assert.equal(denied.status, 403);
+        assert.equal(denied.token, undefined);
+      }
+      assert.equal((await call("/requests/my", "GET", undefined, adminToken)).status, 403);
       assert.equal((await call("/admin/dashboard")).status, 401);
       assert.equal(
         (await call("/admin/dashboard", "GET", undefined, studentToken)).status,

@@ -5,6 +5,7 @@ An existing React/Vite student portal extended with a secure Express/MongoDB adm
 ## Features
 
 - Students register, sign in, browse active university services, submit normal or urgent requests, and track status and staff comments.
+- `/login` offers separate Student and Admin portals. Forms at `/student/login` and `/admin/login` verify portal access against the database role before issuing a session. See [login implementation and verification](docs/LOGIN.md).
 - Administrators sign in at `/admin/login` and manage dashboard metrics, requests, accounts, roles and services.
 - Dashboard includes student/staff counts, all five request statuses, recent requests and six monthly request totals.
 - Admin tables include search, filters, sorting, pagination, loading/error/empty states and retry controls.
@@ -102,6 +103,12 @@ npm.cmd run dev
 
 Open `http://localhost:5173`. For a frontend production build, run `npm.cmd run build`; `npm.cmd run preview` requires a configured production API URL or reverse proxy because Vite's development proxy is not a production server.
 
+### Backend startup or login fails
+
+The API connects to MongoDB before listening, so login cannot work while startup is failing. From `backend`, run `npm.cmd run test:db` to isolate the database connection. A `querySrv`/`queryTxt` error indicates a DNS lookup failure: check the network/DNS and the Atlas cluster address. A server-selection failure can indicate blocked database traffic, an unavailable cluster, or an Atlas Network Access IP allowlist that does not include your current public IP. Authentication failures require checking the Atlas database user credentials in `MONGO_URI`. Keep credentials private.
+
+After connectivity is restored, restart `npm.cmd run dev`. Confirm the terminal reports `MongoDB connected`, and that `frontend/.env`'s `API_PROXY_TARGET` matches the backend port. Restart Vite after changing its environment. Restricted execution environments may block Atlas connections even when the same command succeeds in a normal terminal.
+
 ## API
 
 All responses are JSON. Errors return `{ "message": "..." }`. Lists return `{ items, total, page, pages }`. Protected calls use `Authorization: Bearer <token>`. Tokens expire after eight hours. The server reloads the user from MongoDB for each protected request; stale role claims do not grant access.
@@ -113,7 +120,7 @@ All responses are JSON. Errors return `{ "message": "..." }`. Lists return `{ it
 | GET        | /api/auth/me                   | Signed-in account details                                   |
 | GET        | /api/services                  | Public active catalogue                                     |
 | POST       | /api/requests                  | Student; create an owned request                            |
-| GET        | /api/requests/my               | Signed-in user; only their requests                         |
+| GET        | /api/requests/my               | Student; only their requests                               |
 | GET        | /api/admin/dashboard           | Admin; real counts, recent requests, trends                 |
 | GET        | /api/admin/requests            | Admin; searchable paginated requests                        |
 | GET        | /api/admin/requests/:id        | Admin; details and allowed status transitions               |
@@ -169,19 +176,20 @@ Legacy users without an active field are treated as active. Existing requests wi
 cd frontend
 npm.cmd run build
 npm.cmd run lint
+npm.cmd run test:e2e
 cd ../backend
 npm.cmd test
 npm.cmd run test:db
 npm.cmd run test:integration
 ```
 
-`npm test` uses Node's built-in test runner and database stubs for ten critical HTTP/security tests. It needs no live MongoDB. `test:integration` connects to the configured MongoDB, creates uniquely named Integration-* accounts/service/request, tests actual persistence, and removes **only the created IDs** in a finally block. It never resets a collection. Prefer a development database; do not run it during concurrent demonstrations because temporary test records briefly appear in global counts.
+`npm test` uses Node's built-in test runner for 14 security, validation and startup-diagnostic tests. It needs no live MongoDB. `test:integration` connects to the configured MongoDB, creates uniquely named Integration-* accounts/service/request, tests actual persistence, and removes **only the created IDs** in a finally block. It never resets a collection. Prefer a development database; do not run it during concurrent demonstrations because temporary test records briefly appear in global counts. The frontend's `test:e2e` command uses installed Chrome and the configured database; see [browser test prerequisites](docs/LOGIN.md). Run the integration and browser suites separately.
 
-Verified: frontend build and lint; ten security/validation tests; real MongoDB integration suite for authentication, service create/read/update/deactivate/reactivate, status persistence, assignment/comments, user role/activation, metrics and search/filter/sort/pagination. See [test results and manual checklist](docs/TESTING.md).
+Verified: frontend build and lint; 14 backend tests; real MongoDB integration suite for authentication, portal role checks, service create/read/update/deactivate/reactivate, status persistence, assignment/comments, user role/activation, metrics and search/filter/sort/pagination. Chrome browser tests cover separate login forms, registration, request submission/tracking, refresh, logout, session expiry, access restrictions and error handling. See [test results and manual checklist](docs/TESTING.md).
 
 ## Interface screenshots
 
-Actual screenshots could not be captured because this session exposes no usable browser-control surface. No fabricated screenshots are included. Capture these after starting the app and signing in: dashboard, requests and detail dialog, users, services and create/edit form, student dashboard, and a 390px mobile viewport. Save them in `docs/screenshots/` and include them in your final report. [Screenshot checklist](docs/screenshots/README.md) describes each view.
+Actual Chrome screenshots of the login selection and mobile forms are in [docs/screenshots](docs/screenshots/README.md). Dashboard, request detail, user-management and service-management screenshots remain on the manual capture checklist.
 
 ## Evaluation and demonstration
 

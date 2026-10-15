@@ -17,8 +17,8 @@ export default function ProtectedRoute({ roles }) {
       </main>
     );
   if (!user)
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to={roles?.includes("admin") ? "/admin/login" : roles?.includes("student") ? "/student/login" : "/login"} state={{ from: location.pathname, sessionRequired: true }} replace />;
   if (roles && !roles.includes(user.role))
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={user.role === "admin" ? "/admin" : user.role === "student" ? "/dashboard" : "/profile"} replace />;
   return <Outlet />;
 }

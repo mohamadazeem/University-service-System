@@ -1,8 +1,13 @@
 # Actual interface screenshot checklist
 
-No screenshots were generated in the development session because browser-control surfaces were unavailable. Do not substitute generated mockups for working-page evidence.
+Actual headless Chrome captures from the login browser suite:
 
-After starting the API and frontend, capture:
+- [Desktop portal selection](login-portals-desktop.png)
+- [Mobile portal selection](login-portals-mobile.png)
+- [Mobile student form](login-student-mobile.png)
+- [Mobile administrator form](login-admin-mobile.png)
+
+Remaining manual captures after starting the API and frontend:
 
 - admin-dashboard.png — real metrics, status distribution, monthly trends and recent requests.
 - admin-requests.png — table with working filters.

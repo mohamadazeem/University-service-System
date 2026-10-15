@@ -1,5 +1,6 @@
 require("dotenv").config();
 const connectDB = require("./config/db");
+const startupError = require("./utils/startupError");
 async function start() {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)
     throw new Error("JWT_SECRET must contain at least 32 characters");
@@ -22,11 +23,7 @@ async function start() {
   process.on("SIGTERM", shutdown);
 }
 start().catch(async (error) => {
-  console.error(
-    error.code === "EADDRINUSE"
-      ? "Startup failed: port is already in use. Choose another PORT or stop the previous server."
-      : "Startup failed. Check MongoDB connectivity and required environment variables.",
-  );
+  console.error(startupError(error));
   await require("mongoose").disconnect();
   process.exitCode = 1;
 });
