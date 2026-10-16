@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
-import hero from "../assets/campus-architecture.svg";
+import hero from "../assets/home-campus (2).png";
 
 const services = [
   ["services", "University Services", "Browse the service catalogue and submit requests to the right department.", "/services", "Explore services"],
@@ -29,7 +29,7 @@ export default function Home() {
           <p className="hero-caption">New here? <Link to="/register">Create a student account</Link></p>
         </div>
         <figure className="campus-visual">
-          <img src={hero} alt="Architectural illustration of a university campus" width="960" height="760" fetchPriority="high" />
+          <div className="campus-photo"><img src={hero} alt="University campus building" width="1672" height="941" fetchPriority="high" /></div>
           <figcaption>University services, brought together.</figcaption>
         </figure>
       </section>

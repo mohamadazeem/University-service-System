@@ -88,13 +88,22 @@ td, .chart-legend li, .quick-action h3 { font-size: 13px; }
 .support-response { background: var(--subtle); }
 .trend-track { background: repeating-linear-gradient(to top, var(--surface), var(--surface) 32px, var(--border) 33px, var(--surface) 34px); }
 .donut > div { background: var(--surface); }
-.home-hero { grid-template-columns: 1.04fr 1fr; gap: 56px; padding: 64px 0 76px; }
+.home-hero { grid-template-columns: .95fr 1.15fr; gap: 44px; padding: 64px 0 76px; }
 .home-hero h1 { font-size: clamp(36px, 4.2vw, 58px); line-height: 1.12; letter-spacing: -1.8px; max-width: 610px; text-wrap: balance; }
 .hero-description { font-size: 18px; line-height: 1.75; max-width: 540px; }
 .hero-buttons .button-link { padding: 13px 20px; }
 .campus-visual { border: 1px solid var(--border); background: #e6ebef; border-radius: 18px; box-shadow: 0 18px 40px #10294710; }
 .campus-visual img { height: 440px; object-fit: cover; }
 .campus-visual figcaption { background: #173456; font-size: 13px; letter-spacing: .2px; }
+/* Preserve the full replacement photo at every screen size. */
+.campus-photo { width: 100%; aspect-ratio: 1672 / 941; overflow: hidden; }
+.campus-visual .campus-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1672 / 941;
+  object-fit: contain;
+}
 .home-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 .home-cards .service-card { padding: 26px 22px; }
 .home-cards h3 { font-size: 18px; }

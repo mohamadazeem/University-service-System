@@ -14,7 +14,7 @@ test("homepage and portal navigation fit desktop, tablet and mobile", async ({ p
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connecting Students to University Services.");
     await expect(page.locator(".hero-description")).toHaveText("Access university services, submit requests, book appointments, and track your progress — all in one convenient platform.");
     await expect(page.locator(".home-hero").getByRole("link", { name: "Explore Services" })).toHaveAttribute("href", "/services");
-    await expect(page.getByRole("img", { name: "Architectural illustration of a university campus" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "University campus building" })).toBeVisible();
     expect(await page.locator(".campus-visual img").evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/home-${width}.png`, fullPage: true });
