@@ -2,6 +2,9 @@ const mongoose = require("mongoose");
 
 const appointmentSchema = new mongoose.Schema(
   {
+    notificationEvents: { type: [require("../utils/notificationEvent").schema], select: false, default: undefined },
+    slot: { type: mongoose.Schema.Types.ObjectId, ref: "AppointmentSlot" },
+    reservedSlot: { type: mongoose.Schema.Types.ObjectId, unique: true, sparse: true },
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

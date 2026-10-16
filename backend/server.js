@@ -5,6 +5,12 @@ async function start() {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)
     throw new Error("JWT_SECRET must contain at least 32 characters");
   await connectDB();
+  // Do not accept bookings before the database uniqueness guards are ready.
+  await Promise.all([
+    require("./models/Appointment").init(),
+    require("./models/AppointmentSlot").init(),
+    require("./models/Notification").init(),
+  ]);
   const app = require("./app");
   const port = process.env.PORT || 5000;
   const server = await new Promise((resolve, reject) => {

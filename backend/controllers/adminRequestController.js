@@ -127,10 +127,11 @@ const updateRequest = async (req, res) => {
   // The condition prevents overwriting a concurrent status update.
   const updated = await Request.findOneAndUpdate(
     { _id: recordId, status: request.status, updatedAt: request.updatedAt },
-    { $set: values },
+    { $set: values, $push: { notificationEvents: require("../utils/notificationEvent").event(request.student, `Your service request was updated${values.status ? ": " + values.status : ""}.`) } },
     { returnDocument: "after", runValidators: true },
   ).populate(populate);
   if (!updated) v.fail("This request changed. Reload its details.", 409);
+  await require("../utils/notifications").tryFlush(Request, request.student.toString());
   res.json({
     message: "Request updated",
     request: updated,

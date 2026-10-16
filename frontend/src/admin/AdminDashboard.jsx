@@ -57,6 +57,7 @@ export default function AdminDashboard() {
           ↻ Refresh data
         </button>
       </div>
+      <div className="attention-banner"><div><strong>{data.statusCounts.Pending} requests awaiting review</strong><p>Start with pending requests to keep student services moving.</p></div><Link className="button-link" to="/admin/requests?status=Pending">Review pending requests</Link></div>
       <div className="metric-grid">
         {metrics.map(([label, count], index) => (
           <article className="metric-card" key={label}>

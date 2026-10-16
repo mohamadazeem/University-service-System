@@ -5,6 +5,7 @@ export default function useResource(url) {
   const [result, setResult] = useState({ key: "", data: null, error: "" });
   const key = `${url}:${version}`;
   useEffect(() => {
+    if (!url) return;
     const controller = new AbortController();
     api
       .get(url, { signal: controller.signal })

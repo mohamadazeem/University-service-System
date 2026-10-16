@@ -16,6 +16,8 @@ import AdminDashboard from "./admin/AdminDashboard";
 import AdminRequests from "./admin/AdminRequests";
 import AdminUsers from "./admin/AdminUsers";
 import AdminServices from "./admin/AdminServices";
+import Support from "./pages/Support";
+import Notifications from "./pages/Notifications";
 export default function App() {
   return (
     <BrowserRouter>
@@ -30,9 +32,12 @@ export default function App() {
           <Route path="/services" element={<Services />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/profile" element={<Profile />} />
+            <Route path="/notifications" element={<Notifications />} />
           </Route>
           <Route element={<ProtectedRoute roles={["student"]} />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/appointments" element={<Support key="student-appointments" kind="appointments" />} />
+            <Route path="/complaints" element={<Support key="student-complaints" kind="complaints" />} />
             <Route path="/my-requests" element={<MyRequests />} />
             <Route path="/request-service" element={<RequestService />} />
           </Route>
@@ -42,6 +47,9 @@ export default function App() {
               <Route path="requests" element={<AdminRequests />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="services" element={<AdminServices />} />
+              <Route path="appointments" element={<Support key="admin-appointments" kind="appointments" admin />} />
+              <Route path="complaints" element={<Support key="admin-complaints" kind="complaints" admin />} />
+              <Route path="notifications" element={<Notifications admin />} />
             </Route>
           </Route>
           <Route

@@ -67,4 +67,6 @@ Email and optional studentId retain existing unique indexes. Sparse studentId al
 
 Request indexes: status+createdAt, student+createdAt and serviceRef. Student and assignedStaff references point to the existing users collection. Pagination bounds and sort allowlists avoid uncontrolled result sizes/fields on admin lists. Text search uses escaped regex; large deployments may replace it with indexed text/Atlas Search.
 
-Appointment, Complaint and Notification schemas are unchanged and included solely to explain existing relationships; their feature flows are outside this implementation.
+Appointment, Complaint and Notification now have protected APIs and frontend workflows. Appointment adds optional slot and sparse unique reservedSlot fields; AppointmentSlot adds staff/timestamp availability with a compound unique index. Rejection releases reservedSlot without deleting historical appointments. Existing appointments require no migration.
+
+Request, Appointment and Complaint add hidden notificationEvents arrays. Source writes persist an event with the action; immediate delivery and inbox retries upsert Notification by a sparse unique eventKey, then remove delivered events. Notification adds a user/createdAt index. Existing notifications remain compatible. See ENHANCEMENT-REPORT.md for workflow and verification limits.

@@ -59,7 +59,7 @@ const mockAccounts = (t) =>
     select: async () => accounts[value],
   }));
 test("unauthenticated access to every admin resource is refused", async () => {
-  for (const path of ["dashboard", "requests", "users", "services", "staff"])
+  for (const path of ["dashboard", "requests", "users", "services", "staff", "appointments", "complaints"])
     assert.equal((await call("/api/admin/" + path)).status, 401);
 });
 test("student cannot access admin reads or writes, even with an admin role claim", async (t) => {
@@ -73,6 +73,12 @@ test("student cannot access admin reads or writes, even with an admin role claim
     ["requests", "GET"],
     ["services", "POST"],
     ["users/" + recordId + "/role", "PATCH"],
+    ["appointments", "GET"],
+    ["appointments/" + recordId, "PATCH"],
+    ["complaints", "GET"],
+    ["complaints/" + recordId, "PATCH"],
+    ["appointment-slots", "POST"],
+    ["appointment-slots/" + recordId, "DELETE"],
   ]) {
     assert.equal(
       (
@@ -322,4 +328,36 @@ test("admin cannot access student request endpoints", async (t) => {
   assert.equal((await call("/api/requests/my", { user: adminId })).status, 403);
   assert.equal((await call("/api/requests", { user: adminId, method: "POST", data: {} })).status, 403);
   assert.equal((await call("/api/requests/my")).status, 401);
+});
+
+test("support workflows reject unauthenticated access, mass assignment and invalid dates", async (t) => {
+  mockAccounts(t);
+  for (const path of ["appointments", "appointments/availability", "complaints", "notifications"])
+    assert.equal((await call("/api/" + path)).status, 401);
+  for (const path of ["appointments", "complaints"]) {
+    assert.equal((await call("/api/" + path, { user: adminId })).status, 403);
+    assert.equal((await call("/api/" + path, { user: studentId, method: "POST", data: { student: adminId, status: "Approved" } })).status, 400);
+  }
+  assert.equal((await call("/api/appointments", { user: studentId, method: "POST", data: { slot: "bad", reason: "Test" } })).status, 400);
+  assert.equal((await call("/api/complaints", { user: studentId, method: "POST", data: { subject: "  ", description: "Test" } })).status, 400);
+  for (const startsAt of ["not-a-date", "2020-01-01T10:00:00Z", "2099-02-30T10:00:00Z"])
+    assert.equal((await call("/api/admin/appointment-slots", { user: adminId, method: "POST", data: { staff: recordId, startsAt } })).status, 400);
+});
+
+test("notification read operations enforce ownership and never accept a client user", async (t) => {
+  mockAccounts(t);
+  const Notification = require("../models/Notification");
+  let filter;
+  t.mock.method(Notification, "findOneAndUpdate", async (value) => { filter = value; return null; });
+  const response = await call(`/api/notifications/${recordId}/read`, { user: studentId, method: "PATCH", data: { user: adminId } });
+  assert.equal(response.status, 404);
+  assert.deepEqual(filter, { _id: recordId, user: studentId });
+});
+
+test("support reviews reject terminal transitions and require complaint responses", async (t) => {
+  mockAccounts(t);
+  const Complaint = require("../models/Complaint");
+  t.mock.method(Complaint, "findById", async () => ({ _id: recordId, student: studentId, status: "Pending" }));
+  assert.equal((await call(`/api/admin/complaints/${recordId}`, { user: adminId, method: "PATCH", data: { status: "Pending", expectedStatus: "Resolved", response: "Reopen" } })).status, 409);
+  assert.equal((await call(`/api/admin/complaints/${recordId}`, { user: adminId, method: "PATCH", data: { status: "Resolved", expectedStatus: "Pending" } })).status, 400);
 });

@@ -183,7 +183,7 @@ export default function AdminRequests() {
   const selectedId = params.get("request");
   const [filters, setFilters] = useState({
     q: "",
-    status: "",
+    status: statuses.includes(params.get("status")) ? params.get("status") : "",
     priority: "",
     service: "",
     from: "",

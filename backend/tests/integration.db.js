@@ -8,18 +8,22 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const Service = require("../models/service");
 const Request = require("../models/Request");
+const Appointment = require("../models/Appointment");
+const Slot = require("../models/AppointmentSlot");
+const Complaint = require("../models/Complaint");
+const Notification = require("../models/Notification");
 const app = require("../app");
 test(
   "MongoDB: authentication, CRUD, metrics, filtering, status rules and revocation",
   { timeout: 120000 },
   async () => {
-    const owned = { users: [], services: [], requests: [] };
+    const owned = { users: [], services: [], requests: [], appointments: [], slots: [], complaints: [] };
     let server;
     const prefix = "Integration-" + Date.now();
     const password = "Test-only-password-2026";
     try {
       await require("../config/db")();
-      await Promise.all([User.init(), Service.init(), Request.init()]);
+      await Promise.all([User.init(), Service.init(), Request.init(), Appointment.init(), Slot.init(), Complaint.init(), Notification.init()]);
       server = app.listen(0, "127.0.0.1");
       await new Promise((resolve) => server.once("listening", resolve));
       const origin = `http://127.0.0.1:${server.address().port}`;
@@ -290,6 +294,51 @@ test(
         baseline.statusCounts.Completed + 1,
       );
       assert.equal(dashboard.trends.length, 6);
+      // Persistent support workflows, concurrency, inbox delivery and ownership.
+      const startsAt = new Date(Date.now() + 86400000).toISOString();
+      const published = await call("/admin/appointment-slots", "POST", { staff: staff.user._id, startsAt }, adminToken);
+      assert.equal(published.status, 201);
+      owned.slots.push(published.slot._id);
+      const slotId = published.slot._id;
+      const available = await call("/appointments/availability", "GET", undefined, studentToken);
+      assert.ok(available.items.some(row => row._id === slotId));
+      const bookings = await Promise.all([1, 2].map(() => call("/appointments", "POST", { slot: slotId, reason: prefix + " appointment" }, studentToken)));
+      assert.deepEqual(bookings.map(row => row.status).sort(), [201, 409]);
+      const bookingId = bookings.find(row => row.status === 201).appointment._id;
+      owned.appointments.push(bookingId);
+      assert.equal((await Appointment.findById(bookingId)).student.toString(), register.user.id);
+      assert.equal((await call("/appointments/availability", "GET", undefined, studentToken)).items.some(row => row._id === slotId), false);
+      assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Pending", status: "Approved" }, studentToken)).status, 403);
+      assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Pending", status: "Approved" }, adminToken)).status, 200);
+      assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Pending", status: "Rejected" }, adminToken)).status, 409);
+      assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Approved", status: "Completed" }, adminToken)).status, 409);
+      assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Approved", status: "Rejected" }, adminToken)).status, 200);
+      assert.equal((await Appointment.findById(bookingId)).reservedSlot, undefined);
+      assert.ok((await call("/appointments/availability", "GET", undefined, studentToken)).items.some(row => row._id === slotId));
+      assert.equal((await call(`/admin/appointment-slots/${slotId}`, "DELETE", undefined, adminToken)).status, 200);
+      assert.equal((await call("/appointments", "POST", { slot: slotId, reason: "Closed" }, studentToken)).status, 409);
+      const submittedComplaint = await call("/complaints", "POST", { subject: prefix, description: "Integration concern" }, studentToken);
+      assert.equal(submittedComplaint.status, 201);
+      const complaintId = submittedComplaint.complaint._id;
+      owned.complaints.push(complaintId);
+      for (const [expectedStatus, status] of [["Pending", "In Review"], ["In Review", "Resolved"]])
+        assert.equal((await call(`/admin/complaints/${complaintId}`, "PATCH", { expectedStatus, status, response: `Concern ${status}` }, adminToken)).status, 200);
+      assert.equal((await Complaint.findById(complaintId)).response, "Concern Resolved");
+      assert.equal((await call("/complaints", "GET", undefined, studentToken)).items[0]._id, complaintId);
+      const inbox = await call("/notifications?limit=100", "GET", undefined, studentToken);
+      assert.equal(inbox.status, 200);
+      assert.equal(inbox.items.length, 9);
+      assert.equal(inbox.unread, 9);
+      assert.ok(inbox.items.every(row => row.user === register.user.id));
+      const notificationId = inbox.items[0]._id;
+      assert.equal((await call(`/notifications/${notificationId}/read`, "PATCH", undefined, adminToken)).status, 404);
+      assert.equal((await call(`/notifications/${notificationId}/read`, "PATCH", undefined, studentToken)).status, 200);
+      const inboxAgain = await call("/notifications?limit=100", "GET", undefined, studentToken);
+      assert.equal(inboxAgain.items.length, 9);
+      assert.equal(inboxAgain.unread, 8);
+      assert.equal((await Notification.findById(notificationId)).isRead, true);
+      assert.equal((await call("/appointments", "GET", undefined, studentToken)).items[0].status, "Rejected");
+      assert.equal((await call("/admin/complaints?status=Resolved", "GET", undefined, adminToken)).items.some(row => row._id === complaintId), true);
       const users = await call(
         "/admin/users?q=" + prefix + "&sort=name&order=asc&limit=1",
         "GET",
@@ -417,6 +466,10 @@ test(
     } finally {
       // Never reset the database or delete by broad filters.
       for (const id of owned.requests) await Request.deleteOne({ _id: id });
+      for (const id of owned.appointments) await Appointment.deleteOne({ _id: id });
+      for (const id of owned.slots) await Slot.deleteOne({ _id: id });
+      for (const id of owned.complaints) await Complaint.deleteOne({ _id: id });
+      for (const id of owned.users) await Notification.deleteMany({ user: id });
       for (const id of owned.services) await Service.deleteOne({ _id: id });
       for (const id of owned.users) await User.deleteOne({ _id: id });
       if (server) await new Promise((resolve) => server.close(resolve));

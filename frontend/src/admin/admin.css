@@ -470,3 +470,7 @@
     padding: 24px 18px;
   }
 }
+
+.attention-banner { display:flex; align-items:center; justify-content:space-between; gap:20px; background:#eaf0ff; border:1px solid #cfdbf5; padding:24px; border-radius:12px; margin-bottom:24px; }
+.attention-banner p { margin:6px 0 0; color:#52647e; }
+@media(max-width:650px) { .attention-banner { align-items:flex-start; flex-direction:column; } }

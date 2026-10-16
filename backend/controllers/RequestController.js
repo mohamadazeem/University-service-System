@@ -24,6 +24,7 @@ const createRequest = async (req, res) => {
   if (!service)
     v.fail("This service is unavailable. Choose an active service.", 404);
   const request = await Request.create({
+    notificationEvents: [require("../utils/notificationEvent").event(req.user.id, "Your service request has been submitted.")],
     student: req.user.id,
     service: service.name,
     serviceRef: service._id,
@@ -31,6 +32,8 @@ const createRequest = async (req, res) => {
     description,
     priority,
   });
+  request.notificationEvents = undefined;
+  await require("../utils/notifications").tryFlush(Request, req.user.id);
   res
     .status(201)
     .json({ message: "Service request submitted successfully", request });

@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const requestSchema = new mongoose.Schema(
   {
+    notificationEvents: { type: [require("../utils/notificationEvent").schema], select: false, default: undefined },
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

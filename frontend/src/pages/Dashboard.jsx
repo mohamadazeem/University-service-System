@@ -78,6 +78,7 @@ export default function Dashboard() {
               My profile
             </Link>
           </div>
+          <div className="button-row section-space"><Link className="button-link secondary" to="/appointments">Appointments</Link><Link className="button-link secondary" to="/complaints">Complaints & support</Link><Link className="button-link secondary" to="/notifications">Notifications</Link></div>
           <section className="panel">
             <header className="panel-heading">
               <h2>Recent requests</h2>

@@ -1,5 +1,7 @@
 # Implementation walkthrough
 
+> This describes the earlier implementation. See [ENHANCEMENT-REPORT.md](ENHANCEMENT-REPORT.md) for the 16 October 2026 audit, new support workflows, design changes and current verification limits.
+
 ## Phase 1: inspect
 
 The original project contained student registration/login, request creation/history, basic pages and six Mongoose models. It had no admin API/UI or persistent service catalogue; the student dashboard showed fixed activity and totals. Registration accepted client roles; authorization relied on JWT role claims. The attached request was read in full. The rubric PDF was absent. Existing frontend build/lint passed.

@@ -116,7 +116,7 @@ p {
 }
 small {
   font-size: 12px;
-  color: #78869c;
+  color: #5b6b82;
 }
 .site-header {
   display: flex;
@@ -299,3 +299,50 @@ small {
     font-size: 13px;
   }
 }
+
+/* Shared portal enhancements */
+.ui-icon { flex-shrink: 0; vertical-align: middle; }
+.home { max-width: 1240px; padding-top: 28px; }
+.home-hero { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 64px; padding: 54px 0 72px; }
+.home-hero h1 { font-size: clamp(38px, 5vw, 64px); letter-spacing: -2px; line-height: 1.08; margin: 16px 0 24px; }
+.hero-description { font-size: 18px; color: #52647e; max-width: 520px; }
+.hero-caption { font-size: 13px; margin-top: 22px; color: #52647e; }
+.campus-visual { margin: 0; position: relative; border-radius: 24px 24px 80px 24px; overflow: hidden; background: #173664; box-shadow: 0 24px 48px #16325c20; }
+.campus-visual img { display: block; width: 100%; height: 390px; object-fit: cover; }
+.campus-visual figcaption { padding: 20px 28px; color: white; font-weight: 600; }
+.home-section { padding: 42px 0; border-top: 1px solid #dce3ee; }
+.home-section h2 { font-size: clamp(23px, 3vw, 30px); margin-bottom: 12px; }
+.home-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 28px; }
+.home-card-icon { display: inline-flex; padding: 14px; background: #edf3ff; border-radius: 12px; color: #244c95; }
+.home-cards h3 { margin: 20px 0 10px; font-size: 19px; }
+.home-cards a { margin-top: auto; font-weight: 650; }
+.how-it-works { display: grid; grid-template-columns: 1fr 1.6fr; gap: 56px; }
+.how-it-works ol { list-style: none; counter-reset: steps; padding: 0; margin: 0; }
+.how-it-works li { counter-increment: steps; position: relative; padding: 0 0 18px 62px; }
+.how-it-works li::before { content: counter(steps, decimal-leading-zero); position: absolute; left: 0; top: 0; background: #e6edfa; color: #244c95; padding: 10px; border-radius: 50%; font-weight: 700; }
+.how-it-works h3 { margin: 0 0 6px; }
+.how-it-works p { color: #52647e; }
+.home-support { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 34px; border-radius: 16px; background: #152f55; color: #e5edfb; margin: 20px 0 42px; }
+.home-support h2 { color: white; margin-bottom: 10px; }
+.home-support p { max-width: 700px; margin: 0; }
+.home-support a { flex-shrink: 0; }
+.home-footer { display: flex; justify-content: space-between; gap: 28px; padding-top: 28px; border-top: 1px solid #dce3ee; color: #52647e; }
+.home-footer nav { display: flex; flex-wrap: wrap; gap: 22px; }
+.support-record { padding: 24px 0; border-bottom: 1px solid #e0e6ef; overflow-wrap: anywhere; }
+.support-record:last-child { border-bottom: 0; }
+.support-record .panel-heading { margin-bottom: 12px; }
+.support-record > button { margin-left: 18px; }
+.support-response { padding: 16px; background: #f0f5fd; border-left: 3px solid #315eb9; margin: 16px 0; border-radius: 5px; }
+.support-response p { margin: 8px 0 0; }
+.preserve-lines { white-space: pre-wrap; }
+.support-filter { max-width: 260px; }
+.availability-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid #e0e6ef; }
+.notification-unread { border-left: 3px solid #315eb9; padding-left: 18px; }
+.badge-in, .badge-resolved { background: #e2f3ec; color: #216348; }
+@media (max-width: 1000px) { .home-hero { gap: 28px; } .campus-visual img { height: 330px; } }
+@media (max-width: 700px) { .home-hero, .how-it-works { grid-template-columns: 1fr; gap: 28px; } .home-cards { grid-template-columns: 1fr; } .home-hero { padding: 28px 0 40px; } .campus-visual img { height: 240px; } .home-support, .home-footer { flex-direction: column; align-items: flex-start; } .home-support { padding: 24px; } .hero-buttons { flex-wrap: wrap; } .availability-row { align-items: flex-start; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+
+.support-records, .panel:has(> .support-record), .panel:has(> .availability-row) { padding: 8px 24px; }
+.support-record .panel-heading { padding: 0 0 16px; }
+.panel:has(> .support-record) > h2, .panel:has(> .availability-row) > h2 { padding-top: 16px; }

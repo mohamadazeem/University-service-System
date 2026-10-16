@@ -19,8 +19,11 @@ export default function Navbar() {
             {user.role === "student" && <>
               <NavLink to="/dashboard">Dashboard</NavLink>
               <NavLink to="/my-requests">My requests</NavLink>
+              <NavLink to="/appointments">Appointments</NavLink>
+              <NavLink to="/complaints">Complaints</NavLink>
             </>}
             <NavLink to="/profile">Profile</NavLink>
+            <NavLink to="/notifications">Notifications</NavLink>
             {user.role === "admin" && (
               <NavLink to="/admin">Admin portal</NavLink>
             )}

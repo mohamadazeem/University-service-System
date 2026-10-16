@@ -1,0 +1,13 @@
+const router = require("express").Router();
+const protect = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
+const c = require("../controllers/supportController");
+router.use(protect);
+router.get("/appointments/availability", authorize("student", "admin"), c.slots);
+router.get("/appointments", authorize("student"), c.list(c.Appointment));
+router.post("/appointments", authorize("student"), c.book);
+router.get("/complaints", authorize("student"), c.list(c.Complaint));
+router.post("/complaints", authorize("student"), c.submitComplaint);
+router.get("/notifications", c.notifications);
+router.patch("/notifications/:id/read", c.readNotification);
+module.exports = router;

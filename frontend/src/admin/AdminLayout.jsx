@@ -8,11 +8,15 @@ import {
 } from "react-router-dom";
 import useAuth from "../auth/useAuth";
 import "./admin.css";
+import Icon from "../components/Icon";
 const links = [
-  ["/admin", "Overview", "◫"],
-  ["/admin/requests", "Requests", "▤"],
-  ["/admin/users", "Users", "♧"],
-  ["/admin/services", "Services", "▦"],
+  ["/admin", "Overview", "overview"],
+  ["/admin/requests", "Requests", "requests"],
+  ["/admin/users", "Users", "users"],
+  ["/admin/services", "Services", "services"],
+  ["/admin/appointments", "Appointments", "appointments"],
+  ["/admin/complaints", "Complaints", "complaints"],
+  ["/admin/notifications", "Notifications", "notifications"],
 ];
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -95,7 +99,7 @@ export default function AdminLayout() {
               aria-label={label}
               onClick={() => setMobileOpen(false)}
             >
-              <span aria-hidden="true">{icon}</span>
+              <Icon name={icon} />
               <span className="sidebar-label">{label}</span>
             </NavLink>
           ))}
