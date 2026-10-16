@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import api, { errorMessage } from "../api/client";
 import useResource from "../hooks/useResource";
 import { Badge, LoadingError, Notice, Pagination } from "../admin/AdminUI";
@@ -75,6 +76,8 @@ export default function Support({
   const open = value => {
     setError("");
     setSuccess("");
+    if (value.type === "slot") staff.reload();
+    if (value.type === "new" && appointments) availability.reload();
     setEditing(value);
   };
   return <Container className={admin ? "" : "page"}>
@@ -82,12 +85,19 @@ export default function Support({
       <div className="button-row"><button className="secondary" onClick={() => {
           resource.reload();
           availability.reload();
+          staff.reload();
         }}>Refresh</button>
       {(!admin || appointments) && <button onClick={() => open({
           type: admin ? "slot" : "new"
         })}>{admin ? "Publish availability" : appointments ? "Book appointment" : "Submit complaint"}</button>}</div>
     </div>
     <Notice>{success}</Notice>{!editing && <Notice error>{error}</Notice>}
+    {admin && appointments && !staff.loading && !staff.error && !staff.data?.staff.length && <section className="panel form-panel" aria-label="Appointment setup">
+      <h2>Add a staff member to enable bookings</h2>
+      <p>Appointment times must belong to an active staff account. No active staff accounts are available yet.</p>
+      <ol><li>Open Users and choose Create account with the staff role, or reactivate an existing staff account.</li><li>Return here and publish a future appointment time.</li><li>Students can then book that time from their Appointments page.</li></ol>
+      <Link className="button-link" to="/admin/users">Manage staff accounts</Link>
+    </section>}
     {admin && <label className="support-filter">Filter by status<select value={filter} onChange={e => {
         setFilter(e.target.value);
         setPage(1);
@@ -114,7 +124,7 @@ export default function Support({
     {editing && <Modal title={editing.type === "review" ? `Review ${appointments ? "appointment" : "complaint"}` : editing.type === "slot" ? "Publish availability" : appointments ? "Book appointment" : "Submit complaint"} onClose={() => setEditing(null)} busy={busy}>
       {editing.row && <p className="preserve-lines">{appointments ? editing.row.reason : editing.row.subject}</p>}
       <form onSubmit={save}><Notice error>{error}</Notice><fieldset disabled={busy}>
-        {editing.type === "review" ? <><label>Status<select name="status" required>{transitions[kind][editing.row.status].map(s => <option key={s}>{s}</option>)}</select></label>{!appointments && <label>Response<textarea name="response" required maxLength={4000} rows={5} defaultValue={editing.row.response || ""} /></label>}</> : editing.type === "slot" ? <><LoadingError resource={staff} /><label>Staff member<select name="staff" required defaultValue=""><option value="" disabled>Select active staff</option>{staff.data?.staff.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}</select></label><label>Start date and time (your local timezone)<input type="datetime-local" name="startsAt" required /></label></> : appointments ? <><LoadingError resource={availability} />{!availability.loading && !availability.error && !availability.data?.items.length && <p role="status">No appointment times are currently available. Please check back later.</p>}<label>Available time<select name="slot" required defaultValue=""><option value="" disabled>Select a time</option>{availability.data?.items.map(s => <option key={s._id} value={s._id}>{dateTime(s.startsAt)} · {s.staff?.name}</option>)}</select></label><label>Reason<textarea name="reason" required maxLength={2000} rows={4} /></label></> : <><label>Subject<input name="subject" required maxLength={160} /></label><label>Description<textarea name="description" required maxLength={4000} rows={6} /></label></>}
+        {editing.type === "review" ? <><label>Status<select name="status" required>{transitions[kind][editing.row.status].map(s => <option key={s}>{s}</option>)}</select></label>{!appointments && <label>Response<textarea name="response" required maxLength={4000} rows={5} defaultValue={editing.row.response || ""} /></label>}</> : editing.type === "slot" ? <><LoadingError resource={staff} />{!staff.loading && !staff.error && !staff.data?.staff.length && <div className="notice" role="status"><p>No active staff accounts are available. Create or reactivate a staff account before publishing an appointment time.</p><Link to="/admin/users">Manage staff accounts</Link><button type="button" className="secondary" onClick={staff.reload}>Refresh staff list</button></div>}<label>Staff member<select name="staff" required defaultValue=""><option value="" disabled>Select active staff</option>{staff.data?.staff.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}</select></label><label>Start date and time (your local timezone)<input type="datetime-local" name="startsAt" required /></label></> : appointments ? <><LoadingError resource={availability} />{!availability.loading && !availability.error && !availability.data?.items.length && <p role="status">No appointment times have been published yet, or all available times are booked. Ask your university administrator to publish a future appointment time, then refresh this page.</p>}<label>Available time<select name="slot" required defaultValue=""><option value="" disabled>Select a time</option>{availability.data?.items.map(s => <option key={s._id} value={s._id}>{dateTime(s.startsAt)} · {s.staff?.name}</option>)}</select></label><label>Reason<textarea name="reason" required maxLength={2000} rows={4} /></label></> : <><label>Subject<input name="subject" required maxLength={160} /></label><label>Description<textarea name="description" required maxLength={4000} rows={6} /></label></>}
         <div className="button-row"><button disabled={editing.type === "slot" ? staff.loading || !!staff.error || !staff.data?.staff.length : editing.type === "new" && appointments ? availability.loading || !!availability.error || !availability.data?.items.length : false}>{busy ? "Saving…" : "Save"}</button><button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button></div>
       </fieldset></form>
     </Modal>}

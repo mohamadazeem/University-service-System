@@ -3,7 +3,7 @@
 - Frontend production build: passed.
 - Frontend ESLint: passed.
 - Backend security, notification reliability and startup tests: 20 passed.
-- Chrome UI contract suite: 3 passed. Covers homepage at 1440/768/390px, student booking/complaints/notification read state, administrator availability/review and mobile sidebar. Uses explicit API fixtures, not MongoDB.
+- Chrome UI contract suite: 4 passed. Covers homepage at 1440/768/390px, student booking/complaints/notification read state, administrator availability/review and mobile sidebar. Also verifies missing-staff guidance, disabled publishing and staff-list refresh. Uses explicit API fixtures, not MongoDB.
 - Real MongoDB integration: passed with network access enabled. Restricted-network attempts failed at Atlas SRV DNS lookup before assertions. The successful run verified all existing CRUD/authentication checks plus persisted support workflows; temporary records were cleaned.
 - Real Chrome end-to-end suite: 3 passed against MongoDB. Includes registration/login, student/admin access boundaries, service requests, authentication errors, published availability, booking/approval, complaint resolution/response and notification read state across sessions and reloads. Temporary test data was cleaned. A test timing issue found during expansion was corrected before this passing run.
 - git diff --check: passed.

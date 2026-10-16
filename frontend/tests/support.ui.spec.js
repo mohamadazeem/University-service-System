@@ -104,3 +104,22 @@ test("admin publishes availability, reviews complaints and navigates mobile side
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: "test-results/admin-complaints-mobile.png", fullPage: true });
 });
+
+test("empty staff setup explains disabled publishing and refreshes after staff is added", async ({ page }) => {
+  await session(page, admin);
+  let staff = [];
+  await page.route("**/api/admin/staff", route => route.fulfill({ json: { staff } }));
+  await page.route("**/api/appointments/availability", route => route.fulfill({ json: { items: [] } }));
+  await page.route("**/api/admin/appointments?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
+  await page.goto("/admin/appointments");
+  await expect(page.getByRole("heading", { name: "Add a staff member to enable bookings" })).toBeVisible();
+  await page.getByRole("button", { name: "Publish availability" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("No active staff accounts are available.", { exact: false })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Manage staff accounts" })).toHaveAttribute("href", "/admin/users");
+  await expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  staff = [slot.staff];
+  await dialog.getByRole("button", { name: "Refresh staff list" }).click();
+  await dialog.getByLabel("Staff member").selectOption(slot.staff._id);
+  await expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+});
