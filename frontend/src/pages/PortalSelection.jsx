@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import ThemeToggle from "../components/ThemeToggle";
 import PortalIcon from "../components/PortalIcon";
 import "../styles/login.css";
 
@@ -9,7 +10,7 @@ export default function PortalSelection() {
         <Link className="auth-brand" to="/">
           <span className="brand-mark">U</span>University Services
         </Link>
-        <Link className="portal-home" to="/">Return home <span aria-hidden="true">↗</span></Link>
+        <div className="portal-header-actions"><Link className="portal-home" to="/">Return home <span aria-hidden="true">↗</span></Link><ThemeToggle /></div>
       </header>
       <section className="portal-content" aria-labelledby="portal-title">
         <p className="eyebrow">YOUR CAMPUS. CONNECTED.</p>

@@ -1,3 +1,9 @@
+# UI refresh verification - 16 October 2026
+
+Build and lint passed. The expanded UI/theme suite passed all 7 Chrome tests; the existing real MongoDB browser suite passed all 3 tests. See [UI-REDESIGN.md](UI-REDESIGN.md) for changed files, theme behavior, screenshot coverage and remaining manual checks. Backend APIs and schemas were not modified for this visual update.
+
+---
+
 # Current verification - 16 October 2026
 
 - Frontend production build: passed.

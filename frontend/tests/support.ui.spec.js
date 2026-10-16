@@ -11,9 +11,11 @@ test("homepage and portal navigation fit desktop, tablet and mobile", async ({ p
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Less paperwork");
-    await expect(page.getByRole("link", { name: "Explore services" })).toHaveAttribute("href", "/services");
-    await expect(page.getByRole("img", { name: "University campus" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connecting Students to University Services.");
+    await expect(page.locator(".hero-description")).toHaveText("Access university services, submit requests, book appointments, and track your progress — all in one convenient platform.");
+    await expect(page.locator(".home-hero").getByRole("link", { name: "Explore Services" })).toHaveAttribute("href", "/services");
+    await expect(page.getByRole("img", { name: "Architectural illustration of a university campus" })).toBeVisible();
+    expect(await page.locator(".campus-visual img").evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/home-${width}.png`, fullPage: true });
   }
@@ -122,4 +124,93 @@ test("empty staff setup explains disabled publishing and refreshes after staff i
   await dialog.getByRole("button", { name: "Refresh staff list" }).click();
   await dialog.getByLabel("Staff member").selectOption(slot.staff._id);
   await expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+});
+
+test("theme follows the system, persists a choice and covers public pages", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.route("**/api/services", route => route.fulfill({ json: { services: [] } }));
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(13, 22, 36)");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  expect(await page.evaluate(() => localStorage.getItem("university-theme"))).toBe("dark");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/", "/login", "/student/login", "/admin/login", "/register", "/services"]) {
+      await page.goto(path);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      await expect(page.getByRole("button", { name: "Switch to light mode" })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.goto("/");
+    await page.screenshot({ path: `test-results/home-dark-${width}.png`, fullPage: true });
+  }
+  await page.goto("/login");
+  await page.getByRole("link", { name: "Student Login" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("saved dark theme covers student and administrator panels and dialogs", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("university-theme", "dark"));
+  await session(page, student);
+  await page.route("**/api/appointments?**", route => route.fulfill({ json: { items: [], pages: 0, total: 0 } }));
+  await page.route("**/api/appointments/availability", route => route.fulfill({ json: { items: [slot] } }));
+  await page.goto("/appointments");
+  await page.getByRole("button", { name: "Book appointment" }).click();
+  await expect(page.getByRole("dialog")).toHaveCSS("background-color", "rgb(21, 34, 53)");
+  await expect(page.getByLabel("Reason")).toHaveCSS("background-color", "rgb(21, 34, 53)");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.route("**/api/services", route => route.fulfill({ json: { services: [] } }));
+  await page.route("**/api/requests/my", route => route.fulfill({ json: { requests: [] } }));
+  await page.goto("/dashboard");
+  await expect(page.locator(".metric-card").first()).toHaveCSS("background-color", "rgb(21, 34, 53)");
+  await page.screenshot({ path: "test-results/student-dashboard-dark.png", fullPage: true });
+  await page.unroute("**/api/auth/me");
+  await page.route("**/api/auth/me", route => route.fulfill({ json: { user: admin } }));
+  await page.route("**/api/admin/staff", route => route.fulfill({ json: { staff: [slot.staff] } }));
+  await page.route("**/api/admin/appointments?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
+  await page.route("**/api/admin/dashboard", route => route.fulfill({ json: {
+    students: 0, staff: 0, services: 0, totalRequests: 0,
+    statusCounts: { Pending: 0, Processing: 0, Approved: 0, Rejected: 0, Completed: 0 },
+    trends: Array.from({ length: 6 }, (_, i) => ({ month: `2026-0${i + 1}`, count: 0 })), recentRequests: [],
+  } }));
+  await page.goto("/admin");
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator(".donut > div")).toHaveCSS("background-color", "rgb(21, 34, 53)");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/admin-dashboard-dark-${width}.png`, fullPage: true });
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/admin/appointments");
+  await expect(page.locator(".admin-shell")).toHaveCSS("background-color", "rgb(13, 22, 36)");
+  await expect(page.locator(".admin-topbar")).toHaveCSS("background-color", "rgb(21, 34, 53)");
+  await page.getByRole("button", { name: "Publish availability" }).click();
+  await expect(page.getByRole("dialog")).toHaveCSS("background-color", "rgb(21, 34, 53)");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("theme toggle remains usable with blocked storage and reduced motion", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    Storage.prototype.getItem = () => { throw new Error("Storage unavailable"); };
+    Storage.prototype.setItem = () => { throw new Error("Storage unavailable"); };
+  });
+  const errors = [];
+  page.on("pageerror", e => errors.push(e.message));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator(".theme-toggle")).toHaveCSS("transition-duration", "0s");
+  expect(errors).toEqual([]);
 });

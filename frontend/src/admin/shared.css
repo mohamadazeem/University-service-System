@@ -3,7 +3,7 @@
   height: 36px;
   border-radius: 9px;
   background: #244c95;
-  color: white;
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -12,7 +12,7 @@
   font-weight: 800;
 }
 .muted {
-  color: #586b84;
+  color: var(--muted);
   font-weight: 400;
 }
 .eyebrow {
@@ -33,8 +33,8 @@
   margin: 0;
 }
 .panel {
-  background: #fff;
-  border: 1px solid #e0e5ef;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   margin-bottom: 24px;
   overflow: hidden;
@@ -45,7 +45,7 @@
   gap: 20px;
   align-items: center;
   padding: 22px 24px;
-  border-bottom: 1px solid #ecf0f6;
+  border-bottom: 1px solid var(--border);
 }
 .panel-heading p {
   margin: 6px 0 0;
@@ -62,20 +62,20 @@
 }
 .metric-card {
   padding: 20px 22px;
-  background: white;
-  border: 1px solid #e0e5ef;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 9px;
   display: flex;
   flex-direction: column;
 }
 .metric-card > span {
   font-size: 12px;
-  color: #63728a;
+  color: var(--muted);
   font-weight: 550;
 }
 .metric-card strong {
   font-size: 32px;
-  color: #203859;
+  color: var(--heading);
   letter-spacing: -1px;
   padding: 8px 0 4px;
 }
@@ -92,8 +92,8 @@ table {
   text-align: left;
 }
 th {
-  background: #f8f9fc;
-  color: #79869b;
+  background: var(--subtle);
+  color: var(--muted);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -103,16 +103,16 @@ th {
 td,
 th {
   padding: 15px 22px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--border);
 }
 td {
   font-size: 12px;
-  color: #50617b;
+  color: var(--muted);
   vertical-align: middle;
 }
 td strong {
   font-weight: 600;
-  color: #30445f;
+  color: var(--heading);
 }
 td small,
 dd small {
@@ -124,7 +124,7 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 tbody tr:hover {
-  background: #fafbfe;
+  background: var(--subtle);
 }
 .badge {
   display: inline-block;
@@ -133,37 +133,37 @@ tbody tr:hover {
   font-size: 10px;
   font-weight: 650;
   white-space: nowrap;
-  background: #eef1f7;
-  color: #687895;
+  background: var(--subtle);
+  color: var(--muted);
 }
 .badge-pending,
 .badge-urgent {
-  background: #fff3d9;
-  color: #a7751c;
+  background: var(--warning-bg);
+  color: var(--warning-text);
 }
 .badge-processing,
 .badge-student {
-  background: #eaf0ff;
-  color: #486cc0;
+  background: var(--tint);
+  color: var(--link);
 }
 .badge-approved,
 .badge-active {
-  background: #e6f4ee;
-  color: #38876c;
+  background: var(--success-bg);
+  color: var(--success-text);
 }
 .badge-rejected,
 .badge-inactive {
-  background: #fcebee;
-  color: #b05b66;
+  background: var(--error-bg);
+  color: var(--error-text);
 }
 .badge-completed,
 .badge-admin {
-  background: #eeeafb;
-  color: #7964b5;
+  background: var(--violet-bg);
+  color: var(--violet-text);
 }
 .badge-staff {
-  background: #e7f4f6;
-  color: #387d88;
+  background: var(--success-bg);
+  color: var(--success-text);
 }
 .filters {
   display: flex;
@@ -171,7 +171,7 @@ tbody tr:hover {
   align-items: flex-end;
   flex-wrap: wrap;
   padding: 22px 24px;
-  border-bottom: 1px solid #ecf0f6;
+  border-bottom: 1px solid var(--border);
 }
 .filters label {
   margin: 0;
@@ -193,7 +193,7 @@ tbody tr:hover {
   font-size: 12px;
 }
 .filters-secondary {
-  background: #fcfdff;
+  background: var(--subtle);
   padding-top: 14px;
   padding-bottom: 14px;
 }
@@ -206,16 +206,16 @@ tbody tr:hover {
 .table-button {
   background: transparent;
   padding: 4px 6px;
-  color: #4169af;
+  color: var(--link);
   border: 0;
   font-size: 11px;
   white-space: nowrap;
 }
 .table-button:hover {
-  background: #edf2fa;
+  background: var(--tint);
 }
 .danger-text {
-  color: #b05b66;
+  color: var(--error-text);
 }
 .pagination {
   padding: 16px 24px;
@@ -223,8 +223,8 @@ tbody tr:hover {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  border-top: 1px solid #edf0f5;
-  color: #78869b;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
   font-size: 12px;
 }
 .pagination button {
@@ -234,7 +234,7 @@ tbody tr:hover {
 .empty-state {
   text-align: center;
   padding: 48px 24px;
-  color: #78869b;
+  color: var(--muted);
 }
 .notice {
   border-radius: 7px;
@@ -243,14 +243,14 @@ tbody tr:hover {
   margin: 0 0 20px;
 }
 .notice-error {
-  background: #fff0f1;
-  border: 1px solid #f1ccd1;
-  color: #a1414c;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error-text);
 }
 .notice-success {
-  background: #eaf6ef;
-  border: 1px solid #cae9d8;
-  color: #367854;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
 }
 .notice button {
   margin-left: 14px;
@@ -287,7 +287,7 @@ tbody tr:hover {
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   padding: 26px;
   box-shadow: 0 24px 70px #12243a33;
 }
@@ -298,17 +298,17 @@ tbody tr:hover {
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--border);
 }
 .icon-button {
-  background: #f1f4f9;
+  background: var(--subtle);
   border: 0;
-  color: #536582;
+  color: var(--muted);
   font-size: 20px;
   padding: 3px 10px;
 }
 .icon-button:hover {
-  background: #e2e9f4;
+  background: var(--tint);
 }
 .modal-actions {
   display: flex;
@@ -316,7 +316,7 @@ tbody tr:hover {
   gap: 12px;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid var(--border);
 }
 .checkbox-label {
   display: flex;
@@ -342,11 +342,11 @@ tbody tr:hover {
   font-size: 13px;
 }
 .detail-list dt {
-  color: #78869b;
+  color: var(--muted);
 }
 .detail-list dd {
   margin: 0;
-  color: #354b6a;
+  color: var(--text);
   overflow-wrap: anywhere;
 }
 .preserve-lines {
@@ -361,17 +361,17 @@ tbody tr:hover {
 }
 .request-detail-heading code {
   font-size: 11px;
-  color: #78869b;
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 .confirm-inline {
   padding-top: 10px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid var(--border);
 }
 .avatar {
   width: 34px;
   height: 34px;
-  background: #eaf0fa;
+  background: var(--tint);
   color: #526e9e;
   border-radius: 50%;
   display: inline-flex;

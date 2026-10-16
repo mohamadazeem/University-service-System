@@ -3,12 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href="/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
       content="University services, student requests and secure administration."
     />
     <meta name="theme-color" content="#142c4c" />
+    <script>
+      (() => {
+        let selected;
+        try { selected = localStorage.getItem("university-theme"); } catch {}
+        const theme = selected === "light" || selected === "dark" ? selected
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
     <title>University Service System</title>
   </head>
   <body>

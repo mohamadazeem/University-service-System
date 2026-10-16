@@ -83,7 +83,7 @@ export default function AdminDashboard() {
                 .map(([key, count]) => `${key}: ${count}`)
                 .join(", ")}
               style={{
-                background: total ? `conic-gradient(${segments})` : "#e7ebf2",
+                background: total ? `conic-gradient(${segments})` : "var(--border)",
               }}
             >
               <div>

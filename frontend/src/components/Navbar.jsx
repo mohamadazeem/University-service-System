@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../auth/useAuth";
+import ThemeToggle from "./ThemeToggle";
 export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -12,7 +13,7 @@ export default function Navbar() {
         <span>University Services</span>
       </Link>
       <nav aria-label="Main navigation">
-        <NavLink to="/">Home</NavLink>
+        <NavLink to="/" end>Home</NavLink>
         <NavLink to="/services">Services</NavLink>
         {user ? (
           <>
@@ -45,6 +46,7 @@ export default function Navbar() {
             </Link>
           </>
         )}
+        <ThemeToggle />
       </nav>
     </header>
   );

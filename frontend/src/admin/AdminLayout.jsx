@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Menu, X, PanelLeftClose, PanelLeftOpen, ChevronDown, ArrowUpRight } from "lucide-react";
 import {
   Link,
   NavLink,
@@ -9,6 +10,7 @@ import {
 import useAuth from "../auth/useAuth";
 import "./admin.css";
 import Icon from "../components/Icon";
+import ThemeToggle from "../components/ThemeToggle";
 const links = [
   ["/admin", "Overview", "overview"],
   ["/admin/requests", "Requests", "requests"],
@@ -81,7 +83,7 @@ export default function AdminLayout() {
           className="mobile-sidebar-close"
           aria-label="Close navigation"
           onClick={() => setMobileOpen(false)}
-        >×</button>
+        ><X size={20} aria-hidden="true" /></button>
         <Link to="/admin" className="admin-brand">
           <span className="brand-mark">U</span>
           <span className="sidebar-label">
@@ -106,7 +108,7 @@ export default function AdminLayout() {
         </nav>
         <div className="sidebar-bottom">
           <Link to="/services" title="Service catalogue">
-            <span aria-hidden="true">↗</span>
+            <ArrowUpRight size={20} aria-hidden="true" />
             <span className="sidebar-label">Service catalogue</span>
           </Link>
           <button
@@ -114,7 +116,7 @@ export default function AdminLayout() {
             className="collapse-toggle"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <span>{collapsed ? "»" : "«"}</span>
+            {collapsed ? <PanelLeftOpen size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
             <span className="sidebar-label">Collapse sidebar</span>
           </button>
           <small className="sidebar-label">University Service System</small>
@@ -130,26 +132,26 @@ export default function AdminLayout() {
               aria-controls="admin-sidebar"
               onClick={() => setMobileOpen(true)}
             >
-              ☰
+              <Menu size={20} aria-hidden="true" />
             </button>
             <span>
               Administration <span className="muted">/ {page}</span>
             </span>
           </div>
-          <details className="profile-menu">
+          <div className="topbar-actions"><ThemeToggle /><details className="profile-menu">
             <summary>
               <span className="avatar">{user?.name?.slice(0, 1)}</span>
               <span>
                 {user?.name}
                 <small>Administrator</small>
               </span>
-              <span>⌄</span>
+              <ChevronDown size={16} aria-hidden="true" />
             </summary>
             <div>
               <Link to="/profile">My profile</Link>
               <button onClick={signOut}>Sign out</button>
             </div>
-          </details>
+          </details></div>
         </header>
         <main className="admin-content">
           <Outlet />

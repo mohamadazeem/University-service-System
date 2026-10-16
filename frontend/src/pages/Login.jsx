@@ -2,6 +2,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../auth/useAuth";
 import { errorMessage } from "../api/client";
+import ThemeToggle from "../components/ThemeToggle";
 import PortalIcon from "../components/PortalIcon";
 import "../styles/login.css";
 
@@ -35,7 +36,7 @@ export default function Login({ adminOnly = false }) {
     <main className="portal-page portal-form-page">
       <header className="portal-header">
         <Link className="auth-brand" to="/"><span className="brand-mark">U</span>University Services</Link>
-        <Link className="portal-home" to="/login"><span aria-hidden="true">←</span> All portals</Link>
+        <div className="portal-header-actions"><Link className="portal-home" to="/login"><span aria-hidden="true">←</span> All portals</Link><ThemeToggle /></div>
       </header>
       <section className="auth-card portal-login-card" aria-labelledby="login-title">
         <Link className="back-to-portals" to="/login"><span aria-hidden="true">←</span> Back to portal selection</Link>

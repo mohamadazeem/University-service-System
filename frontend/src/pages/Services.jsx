@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import useResource from "../hooks/useResource";
 import useAuth from "../auth/useAuth";
+import Icon from "../components/Icon";
 export default function Services() {
   const resource = useResource("/services");
   const { user } = useAuth();
@@ -30,7 +31,7 @@ export default function Services() {
             {resource.data.services.map((service) => (
               <article className="service-card" key={service._id}>
                 <span className="service-symbol" aria-hidden="true">
-                  ▦
+                  <Icon name="services" size={30} />
                 </span>
                 <p className="eyebrow">{service.department}</p>
                 <h2>{service.name}</h2>
