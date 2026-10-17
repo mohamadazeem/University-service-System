@@ -6,6 +6,7 @@ const slot = { status: "Published", capacity: 1, remaining: 1, endsAt: "2099-01-
 async function session(page, user) {
   await page.addInitScript(() => localStorage.setItem("token", "ui-fixture"));
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user } }));
+  await page.route("**/api/admin/complaints/overview", route => route.fulfill({ json: { total: 0, unassigned: 0, inProgress: 0, resolved: 0, highPriority: 0 } }));
 }
 test("original homepage and unified login fit desktop, tablet and mobile", async ({ page }) => {
   for (const width of [1440, 768, 390]) {
@@ -131,13 +132,16 @@ test("admin publishes availability, reviews complaints and navigates mobile side
   });
   await page.route("**/api/admin/appointments?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
   let status = "Pending";
+  const complaint = () => ({ _id: "complaint", subject: "A concern", description: "Review details", status, student, priority: "Medium", createdAt: new Date().toISOString(), updatedAt: "2026-10-17T00:00:00.000Z" });
   await page.route("**/api/admin/complaints**", async route => {
+    if (route.request().url().includes("/overview")) return route.fulfill({ json: { total: 1, unassigned: 1, inProgress: 0, resolved: status === "Resolved" ? 1 : 0, highPriority: 0 } });
     if (route.request().method() === "PATCH") {
       const body = route.request().postDataJSON();
-      expect(body).toEqual({ status: "Resolved", expectedStatus: "Pending", response: "We have resolved this concern." });
-      status = body.status;
+      expect(body.status).toBe("Resolved"); expect(body.response).toBe("We have resolved this concern."); status = body.status;
+      return route.fulfill({ json: { message: "Complaint response saved successfully.", item: complaint() } });
     }
-    await route.fulfill({ json: { items: [{ _id: "complaint", subject: "A concern", description: "Review details", status, student, createdAt: new Date().toISOString() }], total: 1, pages: 1 } });
+    if (route.request().url().includes("/complaints/complaint")) return route.fulfill({ json: { item: complaint(), allowedStatuses: ["In Progress", "Resolved", "Rejected"], priorities: ["Medium", "High", "Urgent"] } });
+    await route.fulfill({ json: { items: [complaint()], total: 1, pages: 1, statuses: ["Pending", "In Progress", "Resolved"], departments: [], priorities: ["Medium", "High", "Urgent"] } });
   });
   await page.goto("/admin/appointments");
   await page.getByRole("button", { name: "Publish availability" }).click();
@@ -147,11 +151,12 @@ test("admin publishes availability, reviews complaints and navigates mobile side
   await expect(page.locator(".notice-success")).toHaveText("Saved successfully.");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open navigation" }).click();
-  await page.getByRole("link", { name: "Complaints", exact: true }).click();
+  await page.getByRole("link", { name: "Complaints Management", exact: true }).click();
   await page.getByRole("button", { name: "Review", exact: true }).click();
-  await page.getByRole("dialog").getByRole("combobox", { name: "Status", exact: true }).selectOption("Resolved");
+  await page.getByRole("dialog").getByRole("combobox", { name: "Update status", exact: true }).selectOption("Resolved");
   await page.getByLabel("Response").fill("We have resolved this concern.");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: "Review changes", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm changes", exact: true }).click();
   await expect(page.locator(".support-record .badge-resolved")).toHaveText("Resolved");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: "test-results/admin-complaints-mobile.png", fullPage: true });

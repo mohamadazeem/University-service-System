@@ -4,6 +4,8 @@ An existing React/Vite student portal extended with a secure Express/MongoDB adm
 
 ## Features
 
+- Admin assigns and monitors complaints; staff investigate only their assigned complaints, with student-owned tracking and private internal notes. See [complaint assignment and privacy](docs/COMPLAINT-ASSIGNMENT.md).
+
 - Staff publish and manage service appointment availability, locations and capacity; students discover, book and cancel appointments. See [availability workflow, permissions and transaction requirements](docs/APPOINTMENT-AVAILABILITY.md).
 
 - Staff and lecturers register with name, email, required Staff ID and password, await Admin approval, then process only service requests assigned to them by an administrator. See [staff workflow, API, existing-account handling and verification](docs/STAFF-WORKFLOW.md).

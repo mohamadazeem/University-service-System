@@ -135,3 +135,4 @@
 }
 @media(max-width: 600px) { .staff-support-metric { padding: 16px; } .staff-support-filters .filter-reset { grid-column: 1 / -1; } }
 .staff-support-metric > div { min-height: 38px; }
+.staff-support-overview .staff-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

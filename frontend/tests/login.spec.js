@@ -227,10 +227,11 @@ test("real support workflows persist across student and administrator sessions",
   await page.goto("/admin/complaints");
   const complaintRecord = page.locator(".support-record").filter({ hasText: prefix + " concern" });
   await complaintRecord.getByRole("button", { name: "Review", exact: true }).click();
-  await page.getByRole("dialog").getByRole("combobox").selectOption("Resolved");
+  await page.getByLabel("Update status", { exact: true }).selectOption("Resolved");
   await page.getByLabel("Response").fill("Temporary browser concern resolved.");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator(".notice-success")).toHaveText("Saved successfully.");
+  await page.getByRole("button", { name: "Review changes", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm changes", exact: true }).click();
+  await expect(page.locator(".notice-success")).toHaveText("Complaint response saved successfully.");
   expect((await Complaint.findOne({ student: student._id })).response).toBe("Temporary browser concern resolved.");
   await switchPortal("student", email);
   await page.goto("/appointments");

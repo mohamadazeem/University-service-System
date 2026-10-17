@@ -13,7 +13,7 @@ const {
   tryFlush
 } = require("../utils/notifications");
 const { appointments, complaints, priorities, categories } = require("../utils/supportWorkflow");
-// Staff own their appointment resource; approved support staff review university complaints.
+// Appointment ownership is separate from the assignment-scoped complaint controller.
 // Student routes always enforce ownership, irrespective of client filters.
 const scope = (Model, user) => user.role === "student" ? { student: user.id }
   : user.role === "staff" && Model === Appointment ? { staff: user.id } : {};
@@ -23,6 +23,7 @@ const populateFor = Model => Model === Appointment ? [
   { path: "slot", select: "startsAt endsAt location building room title description instructions serviceName category durationMinutes" },
 ] : [{ path: "student", select: "name studentId email" }];
 exports.list = Model => async (req, res) => {
+  if (Model === Complaint) return require("./complaintController").list(req, res);
   const booking = Model === Appointment;
   const p = v.paging(req.query, booking ? ["createdAt", "updatedAt", "status", "date"] : ["createdAt", "updatedAt", "status"]);
   const filter = scope(Model, req.user);
@@ -62,89 +63,27 @@ exports.list = Model => async (req, res) => {
   res.json({ items, total, page: p.page, pages: Math.ceil(total / p.limit), statuses, priorities, categories });
 };
 exports.details = Model => async (req, res) => {
+  if (Model === Complaint) return require("./complaintController").details(req, res);
   const item = await Model.findOne({ _id: v.id(req.params.id), ...scope(Model, req.user) }).populate(populateFor(Model));
   if (!item) v.fail("Record not found", 404);
   res.json({ item, allowedStatuses: (Model === Appointment ? appointments : complaints)[item.status], priorities, categories });
 };
 exports.overview = async (req, res) => {
-  const ownBookings = scope(Appointment, req.user);
-  const unresolved = { status: { $in: ["Pending", "In Review"] } };
-  const [pendingBookings, upcomingBookings, unresolvedComplaints, highPriorityComplaints] = await Promise.all([
-    Appointment.countDocuments({ ...ownBookings, status: "Pending" }),
-    Appointment.countDocuments({ ...ownBookings, status: "Approved", date: { $gt: new Date() } }),
-    Complaint.countDocuments(unresolved),
-    Complaint.countDocuments({ ...unresolved, priority: { $in: ["High", "Urgent"] } }),
+  const [pendingBookings, upcomingBookings] = await Promise.all([
+    Appointment.countDocuments({ staff: req.user.id, status: "Pending" }),
+    Appointment.countDocuments({ staff: req.user.id, status: "Approved", date: { $gt: new Date() } }),
   ]);
-  res.json({ pendingBookings, upcomingBookings, unresolvedComplaints, highPriorityComplaints });
+  res.json({ pendingBookings, upcomingBookings });
 };
 const scheduling = require("./appointmentController");
 exports.slots = scheduling.list(true);
 exports.createSlot = scheduling.create(true);
 exports.closeSlot = scheduling.closeLegacy;
 exports.book = scheduling.book;
-exports.submitComplaint = async (req, res) => {
-  v.body(req.body, ["subject", "description", "priority", "category"]);
-  const complaint = await Complaint.create({
-    student: req.user.id,
-    subject: v.text(req.body.subject, "Subject", 160),
-    priority: req.body.priority === undefined ? "Medium" : v.choice(req.body.priority, priorities, "priority"),
-    category: req.body.category === undefined ? "General" : v.choice(req.body.category, categories, "category"),
-    description: v.text(req.body.description, "Description", 4000),
-    notificationEvents: [event(req.user.id, "Your complaint has been received for review.")]
-  });
-  await tryFlush(Complaint, req.user.id);
-  res.status(201).json({
-    complaint: {
-      _id: complaint._id,
-      status: complaint.status
-    }
-  });
-};
+exports.submitComplaint = require("./complaintController").submit;
 exports.review = Model => async (req, res) => {
-  const isAppointment = Model === Appointment;
-  if (isAppointment) return scheduling.review(req, res);
-  v.body(req.body, isAppointment ? ["status", "expectedStatus", "expectedUpdatedAt"] : ["status", "expectedStatus", "expectedUpdatedAt", "response", "priority"]);
-  const transitions = isAppointment ? appointments : complaints;
-  const status = v.choice(req.body.status, Object.keys(transitions), "status");
-  const expectedStatus = v.choice(req.body.expectedStatus, Object.keys(transitions), "expected status");
-  const sameComplaintStatus = !isAppointment && status === expectedStatus && transitions[expectedStatus].length > 0;
-  if (!sameComplaintStatus && !transitions[expectedStatus].includes(status)) v.fail("This status transition is not permitted", 409);
-  // Scope the lookup itself so another staff member's booking stays private.
-  const record = await Model.findOne({ _id: v.id(req.params.id), ...scope(Model, req.user) });
-  if (!record) v.fail("Record not found", 404);
-  if (req.body.expectedUpdatedAt !== undefined || req.user.role === "staff") {
-    const timestamp = v.text(req.body.expectedUpdatedAt, "Last updated timestamp", 40);
-    if (!Number.isFinite(Date.parse(timestamp))) v.fail("Invalid last updated timestamp");
-    if (new Date(timestamp).getTime() !== record.updatedAt?.getTime()) v.fail("This record changed. Refresh and try again.", 409);
-  }
-  const values = { status };
-  if (!isAppointment) {
-    values.response = v.text(req.body.response, "Response", 4000);
-    if (req.body.priority !== undefined) values.priority = v.choice(req.body.priority, priorities, "priority");
-  }
-  if (isAppointment && status === "Completed" && record.date > new Date()) v.fail("An appointment cannot be completed before it starts", 409);
-  if (isAppointment && status === "Approved" && record.date <= new Date()) v.fail("A past appointment cannot be approved", 409);
-  const update = {
-    $set: values,
-    $push: { notificationEvents: event(record.student, `${isAppointment ? "Appointment" : "Complaint"} status: ${status}.`) },
-  };
-  if (!isAppointment) {
-    const entry = { status, response: values.response, priority: values.priority || record.priority || "Medium",
-      actor: req.user.id, actorName: req.user.name, actorRole: req.user.role, at: new Date() };
-    const previous = !record.history?.length && record.response ? [{
-      status: record.status, response: record.response, priority: record.priority || "Medium",
-      actorName: "Previous university response", actorRole: "support", at: record.updatedAt,
-    }] : [];
-    update.$push.history = { $each: [...previous, entry] };
-  }
-  if (isAppointment && ["Rejected", "Cancelled"].includes(status)) update.$unset = { reservedSlot: 1 };
-  const updated = await Model.findOneAndUpdate({
-    _id: record._id, ...scope(Model, req.user), status: expectedStatus,
-    ...(record.updatedAt && { updatedAt: record.updatedAt }),
-  }, update, { returnDocument: "after", runValidators: true });
-  if (!updated) v.fail("This record changed. Refresh and try again.", 409);
-  await tryFlush(Model, record.student.toString());
-  res.json({ message: isAppointment ? "Booking updated successfully." : "Complaint response saved successfully.", item: updated });
+  if (Model === Appointment) return scheduling.review(req, res);
+  return require("./complaintController").review(req, res);
 };
 exports.notifications = async (req, res) => {
   for (const Model of [Appointment, Complaint, Request]) await flush(Model, req.user.id);

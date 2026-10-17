@@ -13,6 +13,7 @@ import MyRequests from "./pages/MyRequests";
 import Profile from "./pages/Profile";
 import AdminLayout from "./admin/AdminLayout";
 import AdminDashboard from "./admin/AdminDashboard";
+import AdminComplaints from "./admin/AdminComplaints";
 import AdminRequests from "./admin/AdminRequests";
 import AdminUsers from "./admin/AdminUsers";
 import AdminServices from "./admin/AdminServices";
@@ -70,7 +71,7 @@ export default function App() {
               <Route path="services" element={<AdminServices />} />
               <Route path="appointments" element={<Support key="admin-appointments" kind="appointments" admin />} />
               <Route path="appointment-slots" element={<AppointmentAvailability admin />} />
-              <Route path="complaints" element={<Support key="admin-complaints" kind="complaints" admin />} />
+              <Route path="complaints" element={<AdminComplaints />} />
               <Route path="notifications" element={<Notifications admin />} />
             </Route>
           </Route>

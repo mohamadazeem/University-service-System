@@ -13,7 +13,7 @@ const Notification = backend("./models/Notification");
 const prefix = "support-ui-" + randomUUID();
 const password = randomUUID() + "Aa1!";
 const email = role => prefix + "-" + role + "@example.test";
-let student, staff, slot;
+let student, staff, slot, otherStaff;
 const ownedUsers = [];
 test.beforeAll(async () => {
   await backend("./config/db")();
@@ -22,6 +22,10 @@ test.beforeAll(async () => {
   ownedUsers.push(student._id);
   staff = await User.create({ name: "Support Lifecycle Staff", email: email("staff"), staffId: prefix, password: hash, role: "staff", approvalStatus: "approved" });
   ownedUsers.push(staff._id);
+  otherStaff = await User.create({ name: "Other Complaint Reviewer", email: email("other-staff"), password: hash, role: "staff", approvalStatus: "approved" });
+  ownedUsers.push(otherStaff._id);
+  const admin = await User.create({ name: "Complaint Assignment Admin", email: email("admin"), password: hash, role: "admin" });
+  ownedUsers.push(admin._id);
   slot = await Slot.create({ staff: staff._id, startsAt: new Date(Date.now() + 86400000), location: "Student Services Room 24" });
 });
 test.afterAll(async () => {
@@ -35,14 +39,23 @@ test.afterAll(async () => {
     await User.deleteMany({ _id: { $in: ownedUsers } });
   } finally { await mongoose.disconnect(); }
 });
+const sessions = new Map();
 async function login(page, role) {
+  if (sessions.has(role)) {
+    await page.goto("/" + role + "/login");
+    await page.evaluate(saved => { localStorage.setItem("token", saved.token); localStorage.setItem("user", saved.user); }, sessions.get(role));
+    await page.goto(role === "staff" ? "/staff" : role === "admin" ? "/admin" : "/dashboard");
+    await expect(page).toHaveURL(role === "staff" ? /\/staff$/ : role === "admin" ? /\/admin$/ : /\/dashboard$/);
+    return;
+  }
   await page.goto(`/${role}/login`);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.locator("#login-email").fill(email(role));
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page).toHaveURL(role === "staff" ? /\/staff$/ : /\/dashboard$/);
+  await expect(page).toHaveURL(role === "staff" ? /\/staff$/ : role === "admin" ? /\/admin$/ : /\/dashboard$/);
+  sessions.set(role, await page.evaluate(() => ({ token: localStorage.getItem("token"), user: localStorage.getItem("user") })));
 }
 async function review(page, status, response) {
   await page.getByRole("button", { name: "Review", exact: true }).click();
@@ -53,7 +66,7 @@ async function review(page, status, response) {
   await page.getByRole("button", { name: "Confirm changes", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }
-test("student bookings and complaints persist through staff management, summaries and responsive views", async ({ page }) => {
+test("student bookings and admin-assigned complaints persist through staff management, summaries and responsive views", async ({ page }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await login(page, "student");
@@ -76,11 +89,26 @@ test("student bookings and complaints persist through staff management, summarie
   const complaint = await Complaint.findOne({ student: student._id });
   expect(complaint.category).toBe("Safety");
   expect(complaint.priority).toBe("Urgent");
+  await login(page, "admin");
+  await page.goto("/admin/complaints");
+  await page.getByLabel("Search complaints", { exact: true }).fill(prefix);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await page.getByRole("button", { name: "Assign Staff", exact: true }).click();
+  await page.getByLabel("Assign Staff", { exact: true }).selectOption(String(staff._id));
+  await page.getByRole("button", { name: "Review assignment", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm assignment", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(String((await Complaint.findById(complaint._id)).assignedStaff)).toBe(String(staff._id));
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.screenshot({ path: "test-results/admin-complaints-assignment.png", fullPage: true });
   await login(page, "staff");
-  await expect(page.locator(".staff-support-metric")).toHaveCount(4);
+  await expect(page.locator(".staff-support-metric")).toHaveCount(2);
+  await expect(page.getByRole("link", { name: /^High-priority complaints/ })).toHaveCount(0);
   await expect(page.locator(".staff-support-metric").first().locator("strong")).toHaveText("1");
   const overview = await page.evaluate(async () => (await fetch("/api/staff/support-overview", { headers: { Authorization: "Bearer " + localStorage.getItem("token") } })).json());
-  expect(overview.highPriorityComplaints).toBe(await Complaint.countDocuments({ status: { $in: ["Pending", "In Review"] }, priority: { $in: ["High", "Urgent"] } }));
+  expect(overview.highPriorityComplaints).toBeUndefined();
+  expect(overview.unresolvedComplaints).toBeUndefined();
   await page.getByRole("link", { name: /^Pending bookings/ }).click();
   await expect(page.getByRole("heading", { name: "Booking Management", exact: true })).toBeVisible();
   await page.getByLabel("Search bookings", { exact: false }).fill(prefix);
@@ -109,14 +137,38 @@ test("student bookings and complaints persist through staff management, summarie
   await review(page, "Rejected");
   expect(await Appointment.countDocuments({ student: student._id, status: "Rejected" })).toBe(1);
   await page.goto("/staff");
-  await page.getByRole("link", { name: /^High-priority complaints/ }).click();
-  await expect(page.getByRole("heading", { name: "Complaint Management", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "My Assigned Complaints", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "My Assigned Complaints", exact: true })).toBeVisible();
   await page.getByLabel("Search complaints", { exact: false }).fill(prefix);
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await page.getByLabel("Category", { exact: true }).selectOption("Safety");
-  await review(page, "In Review", "Safety team is investigating.");
-  expect((await Complaint.findById(complaint._id)).history[0].response).toBe("Safety team is investigating.");
-  await page.reload();
+  await review(page, "In Progress", "Safety team is investigating.");
+  expect((await Complaint.findById(complaint._id)).history.find(entry => entry.kind !== "assignment").response).toBe("Safety team is investigating.");
+  await login(page, "admin");
+  await page.goto("/admin/complaints");
+  await page.getByLabel("Search complaints", { exact: true }).fill(prefix);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await page.getByRole("button", { name: "Reassign Staff", exact: true }).click();
+  await page.getByLabel("Assign Staff", { exact: true }).selectOption(String(otherStaff._id));
+  await page.getByRole("button", { name: "Review assignment", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm assignment", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await login(page, "staff");
+  await page.getByRole("link", { name: "My Assigned Complaints", exact: true }).click();
+  await expect(page.getByText("No complaints match this view.", { exact: true })).toBeVisible();
+  await login(page, "admin");
+  await page.goto("/admin/complaints");
+  await page.getByLabel("Search complaints", { exact: true }).fill(prefix);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
+  await page.getByRole("button", { name: "Reassign Staff", exact: true }).click();
+  await page.getByLabel("Assign Staff", { exact: true }).selectOption(String(staff._id));
+  await page.getByRole("button", { name: "Review assignment", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm assignment", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await login(page, "staff");
+  await page.getByRole("link", { name: "My Assigned Complaints", exact: true }).click();
   await page.getByLabel("Search complaints", { exact: false }).fill(prefix);
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await page.getByRole("button", { name: "Review", exact: true }).click();
@@ -126,7 +178,7 @@ test("student bookings and complaints persist through staff management, summarie
   await page.getByRole("button", { name: "Review changes", exact: true }).click();
   await page.getByRole("button", { name: "Confirm changes", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  expect((await Complaint.findById(complaint._id)).history).toHaveLength(2);
+  expect((await Complaint.findById(complaint._id)).history.filter(entry => entry.kind !== "assignment")).toHaveLength(2);
   await page.getByRole("button", { name: "Clear filters", exact: true }).click();
   await page.getByLabel("Search complaints", { exact: false }).fill(prefix);
   await expect(page.locator("tbody tr")).toHaveCount(1);
@@ -135,7 +187,7 @@ test("student bookings and complaints persist through staff management, summarie
   await expect(page.getByText("No complaints match this view.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Clear filters", exact: true }).click();
   await page.getByLabel("Search complaints", { exact: false }).fill(prefix);
-  const extra = await Complaint.insertMany(Array.from({ length: 10 }, (_, index) => ({ student: student._id, subject: prefix + " pagination " + index, description: "Temporary pagination concern", priority: "Medium", category: "General" })));
+  const extra = await Complaint.insertMany(Array.from({ length: 10 }, (_, index) => ({ student: student._id, assignedStaff: staff._id, subject: prefix + " pagination " + index, description: "Temporary pagination concern", priority: "Medium", category: "General" })));
   expect(extra).toHaveLength(10);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(10);

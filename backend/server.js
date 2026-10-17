@@ -11,6 +11,7 @@ async function start() {
     require("./models/Appointment").init(),
     require("./models/AppointmentSlot").init(),
     require("./models/Notification").init(),
+    require("./models/Complaint").init(),
   ]);
   const app = require("./app");
   const port = process.env.PORT || 5000;

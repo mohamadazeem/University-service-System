@@ -1,3 +1,4 @@
+import { ComplaintOverview } from "./AdminComplaints";
 import { Link } from "react-router-dom";
 import useResource from "../hooks/useResource";
 import { Badge, LoadingError } from "./AdminUI";
@@ -69,6 +70,7 @@ export default function AdminDashboard() {
           </article>
         ))}
       </div>
+      <ComplaintOverview />
       <div className="dashboard-charts">
         <section className="panel">
           <header className="panel-heading">

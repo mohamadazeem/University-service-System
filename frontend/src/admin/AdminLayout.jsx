@@ -19,7 +19,7 @@ const links = [
   ["/admin/services", "Services", "services"],
   ["/admin/appointments", "Appointments", "appointments"],
   ["/admin/appointment-slots", "Availability", "appointments"],
-  ["/admin/complaints", "Complaints", "complaints"],
+  ["/admin/complaints", "Complaints Management", "complaints"],
   ["/admin/notifications", "Notifications", "notifications"],
 ];
 export default function AdminLayout() {

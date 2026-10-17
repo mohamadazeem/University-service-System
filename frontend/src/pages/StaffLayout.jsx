@@ -12,7 +12,7 @@ const links = [
   ["Completed Requests", "/staff/requests?status=Completed", CircleCheck],
   ["Appointments", "/staff/appointments", CalendarDays],
   ["Bookings", "/staff/bookings", CalendarDays],
-  ["Complaints", "/staff/complaints", MessageSquare],
+  ["My Assigned Complaints", "/staff/complaints", MessageSquare],
 ];
 export default function StaffLayout() {
   const { user, logout } = useAuth();
@@ -28,7 +28,7 @@ export default function StaffLayout() {
     return () => document.removeEventListener("keydown", close);
   }, [accountOpen]);
   const initials = user.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("");
-  const title = location.pathname.endsWith("appointments") ? "Appointments" : location.pathname.endsWith("bookings") ? "Booking Management" : location.pathname.endsWith("complaints") ? "Complaint Management" : location.pathname.endsWith("profile") ? "Profile / Account" : location.pathname.endsWith("notifications") ? "Notifications" : location.pathname.endsWith("requests") ? "Service Requests" : "Staff Dashboard";
+  const title = location.pathname.endsWith("appointments") ? "Appointments" : location.pathname.endsWith("bookings") ? "Booking Management" : location.pathname.endsWith("complaints") ? "My Assigned Complaints" : location.pathname.endsWith("profile") ? "Profile / Account" : location.pathname.endsWith("notifications") ? "Notifications" : location.pathname.endsWith("requests") ? "Service Requests" : "Staff Dashboard";
   const signOut = () => { logout(); navigate("/staff/login"); };
   const navigation = <>
     <Link className="staff-brand" to="/staff" onClick={() => setMobileOpen(false)}><span className="staff-brand-icon"><GraduationCap size={24} /></span><span className="staff-nav-label">University<span>Service System</span></span></Link>

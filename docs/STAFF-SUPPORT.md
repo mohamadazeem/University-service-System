@@ -1,3 +1,5 @@
+> Complaint permissions and overview behavior are now superseded by [Complaint assignment and privacy](COMPLAINT-ASSIGNMENT.md). Staff see assigned complaints only; complaint overview cards are Admin-only.
+
 ﻿# Staff booking and complaint management
 
 The staff workspace reuses Appointment, AppointmentSlot, Complaint, the existing
@@ -8,8 +10,7 @@ JWT middleware, notifications, and student/admin support workflows.
 - Student booking and complaint endpoints always filter by the authenticated student.
 - Approved, active staff can list, read, and update only appointments assigned to
   their own staff account. A different staff member's record returns 404.
-- Approved, active staff are university-wide complaint reviewers, consistent with
-  the existing university-wide staff support role. Student users and unapproved
+- Approved, active staff can review only complaints assigned to their own account. Student users and unapproved
   staff cannot access staff complaint APIs. Complaint descriptions, responses, and
   history are omitted from staff list responses and loaded through protected details.
 - Administrators retain their existing support endpoints and university-wide access.

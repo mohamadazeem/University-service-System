@@ -4,8 +4,9 @@
   Rejected: [], Completed: [], Cancelled: [],
 };
 const complaints = {
-  Pending: ["In Review", "Resolved", "Rejected"],
-  "In Review": ["Resolved", "Rejected"],
+  Pending: ["In Review", "In Progress", "Resolved", "Rejected"],
+  "In Review": ["In Progress", "Resolved", "Rejected"],
+  "In Progress": ["Resolved", "Rejected"],
   Resolved: [], Rejected: [],
 };
 const priorities = ["Low", "Medium", "High", "Urgent"];
