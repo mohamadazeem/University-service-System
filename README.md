@@ -4,7 +4,7 @@ An existing React/Vite student portal extended with a secure Express/MongoDB adm
 
 ## Features
 
-- Staff and lecturers self-register, await Admin approval, then process only their department's service requests. Existing staff require explicit review. See [staff workflow, API, existing-account handling and verification](docs/STAFF-WORKFLOW.md).
+- Staff and lecturers register with name, email, required Staff ID and password, await Admin approval, then process service requests across all university departments. See [staff workflow, API, existing-account handling and verification](docs/STAFF-WORKFLOW.md).
 - Students register, sign in, browse active university services, submit normal or urgent requests, and track status and staff comments.
 - `/login` offers Student, Staff and Admin portals. Forms at `/student/login`, `/staff/login` and `/admin/login` verify portal access against the database role before issuing a session. Staff also need approval. See [student/Admin login details](docs/LOGIN.md) and [staff workflow](docs/STAFF-WORKFLOW.md).
 - Administrators sign in at `/admin/login` and manage dashboard metrics, requests, accounts, roles and services.

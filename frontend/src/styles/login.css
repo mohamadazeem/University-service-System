@@ -51,6 +51,11 @@
 .password-toggle:hover { background: var(--tint); }
 .portal-submit { min-height: 46px; border-radius: 8px; }
 .portal-login-card .auth-footer { margin-bottom: 0; color: var(--muted); }
+.staff-registration-card label { margin-bottom: 7px; }
+.staff-registration-card input { margin-bottom: 18px; }
+.staff-registration-card .password-field { margin-bottom: 8px; }
+.staff-registration-card .password-field input { margin-bottom: 0; }
+.staff-registration-card small { display: block; margin-bottom: 18px; }
 .login-spinner { width: 15px; height: 15px; border: 2px solid #ffffff66; border-top-color: var(--surface); border-radius: 50%; animation: login-spin 800ms linear infinite; }
 @keyframes login-spin { to { transform: rotate(360deg); } }
 @media (max-width: 800px) {

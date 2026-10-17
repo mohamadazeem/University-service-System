@@ -24,7 +24,7 @@ export default function StaffRegister() {
     } catch (err) { setError(errorMessage(err)); }
     finally { setBusy(false); }
   };
-  return <main className="auth-page"><section className="auth-card">
+  return <main className="auth-page"><section className="auth-card staff-registration-card">
     <p className="eyebrow">STAFF AND LECTURER REGISTRATION</p>
     <h1>Staff Registration</h1>
     <p className="muted">Register using your details. Your account must be approved by an administrator before you can sign in.</p>

@@ -1,88 +1,117 @@
-# Staff registration, approval and department workspace
+﻿# Staff registration, approval and all-department access
 
-## Using the feature
+This document describes the current workflow. Approved staff can process all university service requests; account departments do not limit access.
 
-Start the existing application with `npm.cmd start` from the repository root (or double-click `Start-University-System.cmd`). Keep the terminal open. No new runtime dependencies are required.
+## Use the feature
 
-1. Open `/login` and choose **Staff Portal**, or go directly to `/staff/register`.
-2. Enter a name, valid university email, optional employee/staff ID, department, password and matching confirmation. Passwords follow the existing policy: at least eight characters, at most 72 UTF-8 bytes. Staff IDs are normalized to uppercase and are unique when provided; emails remain unique across every role.
-3. Submission creates an active **staff** account with **pending** approval. No JWT is issued. Login displays “Your account is awaiting administrator approval.”
-4. Sign in using an existing administrator at `/admin/login`, then open **Staff approvals** (`/admin/staff-approvals`). Search and filter registrations, review the details, verify the staff identity through university records and select the verified department. Approve or reject using the confirmation dialog.
-5. Approved, active staff sign in at `/staff/login` and land at `/staff`. They can search, filter, inspect and process requests for their department, using the existing status workflow and staff comments. Student contact details match the existing request-management view.
-6. Admins can find approved and rejected accounts using the status filter and review them again. Rejection blocks login and all existing staff sessions at their next API request. Approval does not reactivate an inactive account; use existing Admin user management for reactivation.
+Start the existing app from the repository root with `npm.cmd start`, or double-click `Start-University-System.cmd`. Keep the terminal open.
 
-## Department authority and historical records
+1. Open `/staff/register` (also linked from the Staff Portal at `/login`). The form has exactly four fields in order: **Full Name**, **Email**, **Staff ID / Employee Number**, **Password**. All four are required. There is a show/hide password button, and no department or confirmation field.
+2. Use any valid personal or university email. Passwords follow the existing policy: at least eight characters and at most 72 UTF-8 bytes. Submission displays: “Registration submitted successfully. Please wait for administrator approval before signing in.” No session is issued.
+3. New accounts are always created as `role: staff`, `approvalStatus: pending`. Pending staff receive “Your account is awaiting administrator approval.” when trying to sign in. Rejected and inactive accounts are also denied.
+4. An existing administrator signs in at `/admin/login`, opens **Staff approvals** (`/admin/staff-approvals`), searches by name/email/Staff ID, and reviews the account. Approve or reject through the confirmation dialog. A department is not required. Existing Admin filters for historical account departments remain available, but do not grant or restrict permissions.
+5. Approved, active staff sign in at `/staff/login` and land at `/staff`. The dashboard counts all requests, with each of the five existing statuses. Staff can search, filter by department/status/priority/service, sort, paginate, open details, change permitted statuses and edit staff comments.
+6. Admins can review approved or rejected accounts again. Rejection blocks login and existing sessions on the next API request. Approval does not reactivate an inactive account; existing user management still controls activation.
 
-The existing Service collection is the department catalogue. `/api/auth/departments` returns its distinct department names, including inactive services because historical requests still need processing. There is no separate hard-coded list. Configure departments through existing Admin service management. If there are no services, registration displays a configuration message. The existing `npm.cmd run import:catalogue` command can import missing standard services without overwriting records.
+## Staff ID normalization and existing records
 
-Registration department is a request for review, not a permission grant. Admin approval validates and stores the verified department. Every authenticated call reloads the User's role, active flag, department and approval status from MongoDB. JWT and browser values cannot override them.
+`backend/utils/staffId.js` supplies one normalization function for public validation and the User schema setter: trim surrounding whitespace and convert to uppercase. The normalized ID must be non-empty text of at most 50 characters. Public Staff registration requires it. Email remains normalized and unique across roles.
 
-Staff request queries match `Request.serviceRef` against Service IDs whose current `department` exactly matches the authenticated User's department. Listing, counts, individual reads and updates all apply this scope. Changing a department query parameter does not change scope; an out-of-scope ID returns 404. Inactive services remain in scope. An Admin's later change to a service's department transfers its linked requests to the new department on subsequent requests. Scope is resolved afresh for each operation; a concurrent catalogue edit does not cancel an operation already in progress.
+A duplicate check also matches legacy mixed-case or surrounding-whitespace Staff IDs. The existing sparse unique `staffId` index prevents races between new normalized registrations; duplicate-key errors return safe HTTP 409 messages through the existing error handler. No password hashes or database error internals are returned.
 
-Legacy requests without a `serviceRef`, or with a deleted service, are excluded from staff access. Admins retain access. No automatic name-based association is performed because historical names may be ambiguous. Link such a request only after an administrator verifies the service relationship through a separately reviewed maintenance change; this feature never rewrites historical requests.
+The User schema retains optional Staff IDs for backward compatibility. Existing staff without an ID are preserved and may be reviewed and approved normally. Approved existing staff do not lose access for lacking an ID or department. Pending/rejected legacy staff still need approval. Existing Admin account creation remains compatible and also creates pending staff accounts. This change does not invent employee numbers or rewrite existing account fields.
 
-## Existing-account strategy and indexes
+### Read-only preflight
 
-No destructive migration or bulk approval is performed. Students and administrators retain their current access. Existing staff without `approvalStatus` are treated as pending, listed in the pending review queue and denied login/protected resources until reviewed. The review update also supports legacy records without an `updatedAt` value, using a conditional null/missing timestamp match.
-
-Admin-created staff and accounts newly changed to the staff role also require approval. Re-promoting a previously changed account to staff resets approval to pending. Admins can verify or correct a missing/old department in Staff approvals. Existing account identity, requests, passwords and roles are not rewritten by startup.
-
-The User model adds optional department/staffId fields, a staff approval default, approval status/department indexes, a sparse unique staffId index and review metadata. Startup initializes User indexes before accepting requests. The staffId field is optional and is omitted when blank. Duplicate-key races return a safe HTTP 409 through the existing error handler. Existing staff are excluded from new request assignment and appointment availability until approved. Existing assignments and booked appointments are preserved.
-
-Each review stores `reviewedBy`, `reviewedAt` and an appended `approvalHistory` entry with the decision and verified department. History is hidden by default and returned only by the Admin staff-details endpoint. Review writes require the observed approval state and update timestamp and match the staff role. Conflicting or repeated submissions of the same review return 409; reload details before trying again. The history uses the existing MongoDB persistence approach; it is not a separate immutable audit service.
-
-## API additions
-
-| Method | Path | Authorization |
-| --- | --- | --- |
-| GET | `/api/auth/departments` | Public department names |
-| POST | `/api/auth/staff/register` | Public; server forces staff/pending |
-| GET | `/api/admin/staff-registrations` | Admin list, pagination, search and approval/department filters; summary totals |
-| GET | `/api/admin/staff-registrations/:id` | Admin details and review history |
-| PATCH | `/api/admin/staff-registrations/:id` | Admin review with `approvalStatus`, `expectedStatus`, `expectedUpdatedAt`, `department` |
-| GET | `/api/staff/dashboard` | Approved active staff; scoped counts for all five statuses |
-| GET | `/api/staff/requests` | Approved active staff; existing request list filters and pagination |
-| GET | `/api/staff/requests/:id` | Approved active staff; scoped details and allowed transitions |
-| PATCH | `/api/staff/requests/:id` | Approved active staff; status, expectedStatus, optional expectedUpdatedAt and staffComment only |
-
-The existing login endpoint accepts `portal: "staff"` as well as student/admin. Department and approval details in session responses come from the User record. Password hashes are never returned. Public role and approval metadata are ignored; there is no public Admin registration.
-
-Staff cannot change student, service, department, assignment, notification events or Admin-only fields. Shared request processing preserves the existing transition rules, conditional database writes and persisted notification outbox. The shared editor supplies `expectedUpdatedAt` to detect stale comments or other edits even when status did not change; older callers remain compatible. Staff notifications use existing request-update delivery; no new email/approval notification service is claimed.
-
-Email format is validated, but no institution-specific domain restriction or email verification is added because no authoritative university domain was supplied. Approval requires independent university verification; a selected department or email alone never approves an account.
-
-## Implementation files
-
-- User/authentication: `backend/models/user.js`, `backend/controllers/authController.js`, `backend/middleware/authMiddleware.js`, `backend/routes/authRoutes.js`, `backend/utils/staffAccess.js`, `backend/utils/departments.js`, `backend/server.js`.
-- Admin approvals: `backend/controllers/staffApprovalController.js`, `backend/routes/adminRoutes.js`, `frontend/src/admin/StaffApprovals.jsx`, `frontend/src/admin/AdminLayout.jsx`.
-- Scoped requests: `backend/middleware/departmentScope.js`, `backend/routes/staffRoutes.js`, `backend/controllers/adminRequestController.js`, `backend/app.js`, `frontend/src/admin/AdminRequests.jsx`, `frontend/src/pages/StaffDashboard.jsx`.
-- Staff assignment and role compatibility: `backend/controllers/adminUserController.js`, `backend/controllers/supportController.js`, `frontend/src/admin/AdminUsers.jsx`.
-- Registration/navigation/design: `frontend/src/pages/StaffRegister.jsx`, `frontend/src/pages/Login.jsx`, `frontend/src/pages/PortalSelection.jsx`, `frontend/src/pages/Profile.jsx`, `frontend/src/components/Navbar.jsx`, `frontend/src/components/ProtectedRoute.jsx`, `frontend/src/App.jsx`, `frontend/src/admin/shared.css`, `frontend/src/styles/login.css`.
-- Verification: `backend/tests/staff.test.js`, `backend/tests/staff.integration.js`, `backend/tests/integration.db.js`, `backend/package.json`, `frontend/tests/staff.spec.js`, `frontend/tests/login.spec.js`.
-- Documentation: this file and `README.md`.
-
-## Verification commands
+Before changing indexes or migrating an older deployment, run:
 
 ```powershell
 cd backend
+npm.cmd run audit:staff-ids
+```
+
+The script reads raw records and existing indexes, prints only counts, and never changes accounts or indexes. It reports staff without IDs, invalid/non-normalized IDs, duplicate normalized ID groups, and whether the existing sparse unique index is present. If it finds conflicting or invalid values it exits with an error. An administrator must verify the affected identities and approve per-record corrections before normalization; do not bulk-normalize collisions or delete accounts. Missing IDs alone do not require migration.
+
+For the configured database, the pre-change audit found **1 existing staff account without an ID, 0 invalid IDs, 0 non-normalized IDs, 0 duplicate normalized groups, and the sparse unique Staff ID index already present**. No index replacement or data migration was needed, and the existing account was preserved. If an older deployment lacks the index and its audit is clean, normal startup initializes the already-declared Mongoose indexes before listening. No collection reset, `syncIndexes`, bulk approval or automatic backfill is used.
+
+Legacy `User.department` values and old approval-history department entries remain stored. New registration ignores browser-supplied department/role/approval metadata; review decisions no longer assign a department. Staff profile shows all-department service access.
+
+## Authorization and request information
+
+The existing JWT/bcrypt login, rate limiter, CORS and error handling are retained. Both login and authentication middleware verify staff approval. Middleware reloads the current account from MongoDB on every protected request. Browser roles, Staff IDs, approval flags and JWT role/department claims cannot grant permissions.
+
+`/api/staff` requires an authenticated, approved, active staff account. The former department-scope middleware was removed. Request listing, counts, details and updates now include all departments, including inactive services, legacy unlinked requests and requests whose service is no longer available. An optional department filter is a user-selected search criterion, not an authorization boundary.
+
+Service names remain historical request snapshots. The stored `serviceRef` ID is unchanged. The shared request APIs additionally populate a read-only `serviceDetails` virtual with the current service name and department. The shared Admin/staff request table and detail dialog display the department. Department filtering matches authoritative Service IDs. A legacy/unlinked/deleted service displays **Department unavailable**; its request remains accessible when no department filter is applied. No service-name inference or historical record rewrite occurs.
+
+Staff can update only `status`, `expectedStatus`, optional `expectedUpdatedAt`, and `staffComment`. Ownership, student, service, department, assignment, approval and other Admin-only fields are rejected. The existing status transitions, conditional status/timestamp writes and request notifications remain in place. The shared editor sends the observed timestamp to detect stale edits. Nonexistent requests return 404.
+
+Admin request/user/service/approval management remains Admin-only. Staff do not gain those permissions. Student endpoints remain student-only and derive request ownership from the authenticated account, ignoring browser ownership filters. Existing accounts, services, requests, assignments and appointments are retained.
+
+## API
+
+| Method | Endpoint | Access and purpose |
+| --- | --- | --- |
+| POST | `/api/auth/staff/register` | Public four-field registration; server forces staff/pending |
+| POST | `/api/auth/login` | Existing login, with `portal: staff`, student or admin |
+| GET | `/api/auth/departments` | Existing service department names for filters |
+| GET | `/api/admin/staff-registrations` | Admin search, status/legacy-department filters, pagination and summary counts |
+| GET | `/api/admin/staff-registrations/:id` | Admin details and review history |
+| PATCH | `/api/admin/staff-registrations/:id` | Admin review: `approvalStatus`, `expectedStatus`, `expectedUpdatedAt` |
+| GET | `/api/staff/dashboard` | Approved active staff; all-department request totals |
+| GET | `/api/staff/requests` | Approved active staff; searchable, filtered, sorted, paginated requests |
+| GET, PATCH | `/api/staff/requests/:id` | Approved active staff; details and permitted updates across departments |
+
+Review writes still match the intended staff account, expected status and timestamp, reject self-review, and append the responsible Admin and timestamp to approval history. Legacy records without timestamps support a conditional null/missing timestamp check. Conflicts return 409. Password hashes are excluded; review history is selected only by the Admin details endpoint.
+
+## Files changed for this update
+
+- Registration and Staff IDs: `backend/models/user.js`, `backend/utils/staffId.js` (new), `backend/controllers/authController.js`, `frontend/src/pages/StaffRegister.jsx`.
+- Read-only audit: `backend/scripts/audit-staff-ids.js` (new), `backend/package.json`.
+- Approval: `backend/controllers/staffApprovalController.js`, `frontend/src/admin/StaffApprovals.jsx`, `frontend/src/admin/AdminUsers.jsx`.
+- Requests: `backend/routes/staffRoutes.js`, `backend/controllers/adminRequestController.js`, `backend/models/Request.js`, `backend/utils/departments.js`, `frontend/src/admin/AdminRequests.jsx`, `frontend/src/pages/StaffDashboard.jsx`, `frontend/src/admin/shared.css`.
+- Removed obsolete restriction: `backend/middleware/departmentScope.js`.
+- Portal/profile copy and form spacing: `frontend/src/pages/Login.jsx`, `frontend/src/pages/PortalSelection.jsx`, `frontend/src/pages/Profile.jsx`, `frontend/src/styles/login.css`.
+- Tests: `backend/tests/staff.test.js`, `backend/tests/staff.integration.js`, `backend/tests/integration.db.js`, `frontend/tests/staff.spec.js`.
+- Documentation: this file and `README.md`.
+
+Existing authentication middleware and role guards are reused unchanged. No runtime or testing dependencies were added.
+
+## Test commands
+
+```powershell
+cd backend
+npm.cmd run audit:staff-ids
 npm.cmd test
 npm.cmd run test:integration
 cd ../frontend
 npm.cmd run build
 npm.cmd run lint
 npm.cmd run test:e2e
+npm.cmd run test:ui
 ```
 
-Unit tests require no database. Integration and browser tests require normal network access to the configured MongoDB instance and use temporary uniquely named fixtures, removing their own records afterward. Run the integration and browser suites separately to avoid affecting the original suite's global metric assertions. Browser tests use installed Chrome and isolated test-server ports 5002 and 5174.
+Unit tests require no database. Integration and browser tests use unique temporary fixtures and remove their own IDs, without resetting collections or changing pre-existing records. Run those two suites separately because the original integration suite checks global metric differences. Chrome must be installed; browser tests use API port 5002 and frontend port 5174. MongoDB requires normal network access.
 
-## Verified results — 17 October 2026
+## Practical limits
 
-- `backend`: `npm.cmd test` — **32 passed**.
-- `backend`: `npm.cmd run test:integration` — **2 passed**, including actual registration/approval/rejection, password hashing, duplicate identifiers, review history, session revocation, department isolation, legacy-account review without timestamps and existing student/Admin workflows. Fixture cleanup preserved pre-existing records.
-- `frontend`: `npm.cmd run build` and `npm.cmd run lint` — **passed**.
-- `frontend`: `npm.cmd run test:e2e` — the **3 existing browser scenarios passed** on the final full-suite run. The staff scenario initially revealed an overly broad test status locator; after correcting the locator, `npm.cmd run test:e2e -- staff.spec.js` — **1 passed**. The four scenarios have therefore all passed, with the staff scenario rerun separately. A prior failure also exposed a department label association, which was corrected in the application. The old network-error assertion was updated to match the existing startup fix.
-- `frontend`: `npm.cmd run test:ui` — **7 passed**, covering responsive layout, support forms, Admin navigation, empty staff setup and themes.
-- Mobile staff dashboard screenshot inspected at 390px width, with no page overflow; Admin approvals screenshot inspected on desktop. Screenshots are generated in ignored `frontend/test-results` and may be replaced by later test runs.
-- Root `npm.cmd start` successfully connected to MongoDB and started the updated app. New page routes and the department/catalogue APIs returned HTTP 200 through `http://localhost:5173`.
+Email format is checked without institution-domain restrictions or email verification. Administrators must independently verify staff identities. Approval history is stored on the account; no new email service or immutable external audit service is introduced. Requests retain the existing current status, staff comment and timestamps; this update does not create a new status-history system. Unlinked legacy requests have no verifiable department until their service reference is maintained through a separate reviewed change, but approved staff can process them.
 
-All tests use the existing Node test runner and Playwright; no framework or runtime dependencies were added. MongoDB requires the configured network access; the restricted sandbox's Atlas DNS timeout was avoided by running database and Chrome checks with normal network access.
+## Actual verification results — 17 October 2026
+
+| Command / check | Result |
+| --- | --- |
+| Backend `npm.cmd run audit:staff-ids` | Passed; existing unique index present, no conflicting IDs, one existing staff account without an ID preserved |
+| Backend `npm.cmd test` | **33 passed** |
+| Backend `npm.cmd run test:integration` | **2 passed** against MongoDB; original workflows plus four-field registration, index uniqueness, all-department processing, student ownership, approval/revocation and legacy staff access |
+| Frontend `npm.cmd run build` | Passed |
+| Frontend `npm.cmd run lint` | Passed |
+| Frontend `npm.cmd run test:e2e` | **4 passed** in the full Chrome suite |
+| Frontend `npm.cmd run test:e2e -- staff.spec.js` | **1 passed** again after the final form-spacing adjustment; includes registration and dashboard mobile overflow checks |
+| Frontend `npm.cmd run test:ui` | **7 passed**; responsive navigation, support screens, empty staff setup, themes and dialogs |
+| `git diff --check` | Passed |
+| Root `npm.cmd start` | MongoDB connected; updated API and frontend started at `http://localhost:5173` |
+
+Inspected the final desktop form and mobile form/dashboard screenshots. The form contains exactly four inputs, with no selector or confirmation field, and fits a 390px-wide screen. Browser assertions verified show/hide password, pending login denial, Admin approval without a department selector, both departments in the request list, optional department filtering, staff status/comment processing, refresh persistence and rejection blocking an existing session.
+
+The normal local app returned HTTP 400 with a Staff ID validation message when Staff ID was omitted, and HTTP 200 for the staff registration page and service catalogue. After fixture cleanup, the catalogue returned the six existing services. Test records were removed and no migration of pre-existing accounts was performed.

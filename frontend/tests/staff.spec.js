@@ -60,6 +60,10 @@ test("four-field staff registration → approval → all-department processing �
   await expect(page.getByRole("heading", { name: "Staff Registration", exact: true })).toBeVisible();
   expect(await page.locator("form input").evaluateAll((inputs) => inputs.map((input) => input.name))).toEqual(["name", "email", "staffId", "password"]);
   await expect(page.locator("form select")).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/staff-registration-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.screenshot({ path: "test-results/staff-registration-desktop.png", fullPage: true });
   await page.getByLabel("Full Name").fill("Department Test Lecturer");
   await page.getByLabel("Email", { exact: true }).fill(email);
