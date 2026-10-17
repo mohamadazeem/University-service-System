@@ -1,0 +1,44 @@
+﻿import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import api, { errorMessage } from "../api/client";
+import useResource from "../hooks/useResource";
+import useDebouncedValue from "../hooks/useDebouncedValue";
+import Modal from "../components/Modal";
+import { Badge, LoadingError, Notice, Pagination } from "../admin/AdminUI";
+import { AvailabilityCard, SlotInformation } from "./AppointmentAvailability";
+import { appointmentDateTime } from "../utils/appointmentTime";
+
+export function AvailableAppointments({ preview = false, refreshKey = 0, onBooked }) {
+  const [filters, setFilters] = useState({ q: "", date: "", service: "" }), [page, setPage] = useState(1);
+  const search = useDebouncedValue(filters.q);
+  const resource = useResource(`/appointments/availability?${new URLSearchParams({ ...filters, q: search, page, limit: preview ? 3 : 9, refresh: refreshKey })}`);
+  const services = useResource(preview ? null : "/services");
+  const [selected, setSelected] = useState(null), [choose, setChoose] = useState(false), [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const lock = useRef(false);
+  const open = (slot, chooseMode = false) => { setSelected(slot); setChoose(chooseMode); setReason(""); setError(""); setNotice(""); };
+  const book = async event => {
+    event.preventDefault(); if (lock.current || !selected?._id) return;
+    lock.current = true; setBusy(true); setError("");
+    try {
+      const { data } = await api.post("/appointments", { slot: selected._id, reason });
+      setSelected(null); setChoose(false); setNotice(choose ? "Saved successfully." : data.message); resource.reload(); onBooked?.();
+    } catch (err) { setError(errorMessage(err)); }
+    finally { lock.current = false; setBusy(false); }
+  };
+  const change = event => { setFilters({ ...filters, [event.target.name]: event.target.value }); setPage(1); };
+  return <section className="appointment-discovery" aria-label="Available appointments"><div className="page-heading"><div><h2>Available appointments</h2><p className="muted">Published university appointments · Asia/Colombo time</p></div>{preview ? <Link className="text-link" to="/appointments">View all appointments →</Link> : <div className="button-row"><button className="secondary" onClick={resource.reload}>Refresh availability</button><button onClick={() => open(null, true)}>Book appointment</button></div>}</div>{!preview && <section className="panel"><div className="appointment-filters"><label>Search availability<input name="q" value={filters.q} onChange={change} maxLength={100} placeholder="Service, title or location" /></label><label>Appointment date<input type="date" name="date" value={filters.date} onChange={change} /></label><label>University service<select aria-label="University service" name="service" value={filters.service} onChange={change}><option value="">All services</option>{services.data?.services.map(service => <option key={service._id} value={service._id}>{service.name}</option>)}</select></label><button className="secondary" onClick={() => { setFilters({ q: "", date: "", service: "" }); setPage(1); }}>Clear filters</button></div>{services.error && <LoadingError resource={services} />}</section>}<Notice>{notice}</Notice><LoadingError resource={resource} />{!resource.loading && !resource.error && <>{!resource.data.items.length ? <section className="panel empty-state">No published appointments with available spaces match this view.</section> : <div className="appointment-grid">{resource.data.items.map(slot => <AvailabilityCard slot={slot} key={slot._id}>{preview ? <Link className="button-link secondary" to="/appointments">Book Appointment</Link> : <button onClick={() => open(slot)}>Book Appointment</button>}</AvailabilityCard>)}</div>}{!preview && <Pagination data={resource.data} page={page} onChange={setPage} />}</>}{(selected || choose) && <Modal title="Book Appointment" onClose={() => { setSelected(null); setChoose(false); }} busy={busy}>{choose && <label>Available time<select aria-label="Available time" value={selected?._id || ""} required onChange={event => setSelected(resource.data?.items.find(slot => slot._id === event.target.value) || null)}><option value="">Select an available appointment</option>{resource.data?.items.map(slot => <option key={slot._id} value={slot._id}>{appointmentDateTime(slot.startsAt)} · {slot.staff?.name} · {slot.title}</option>)}</select></label>}{selected ? <SlotInformation slot={selected} /> : <p className="muted">Select an appointment to view its time, location and remaining spaces.</p>}<Notice error>{error}</Notice><form onSubmit={book}><fieldset disabled={busy}><label>Reason<textarea aria-label="Reason" value={reason} onChange={event => setReason(event.target.value)} required maxLength={2000} rows={3} /></label><p className="muted">Confirming reserves one space against your student account. Staff will review your booking.</p><footer className="modal-actions"><button className="secondary" type="button" onClick={() => { setSelected(null); setChoose(false); }}>Cancel</button><button disabled={busy || !selected}>{busy ? "Booking..." : choose ? "Save" : "Confirm booking"}</button></footer></fieldset></form></Modal>}</section>;
+}
+export default function StudentAppointments() {
+  const [version, setVersion] = useState(0), [page, setPage] = useState(1);
+  const resource = useResource(`/appointments?page=${page}&refresh=${version}`);
+  const [cancelling, setCancelling] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const lock = useRef(false);
+  const reload = () => setVersion(value => value + 1);
+  const cancel = async () => {
+    if (lock.current) return; lock.current = true; setBusy(true); setError("");
+    try { await api.patch(`/appointments/${cancelling._id}`, { status: "Cancelled", expectedStatus: cancelling.status, expectedUpdatedAt: cancelling.updatedAt }); setCancelling(null); setNotice("Your appointment was cancelled and the space released."); reload(); }
+    catch (err) { setError(errorMessage(err)); } finally { lock.current = false; setBusy(false); }
+  };
+  return <main className="page student-appointments"><div className="staff-page-heading"><div><p className="eyebrow">YOUR STUDENT PORTAL</p><h1>Appointments</h1><p className="muted">Discover university availability and manage your bookings.</p></div><button className="secondary" onClick={reload}>Refresh</button></div><Notice>{notice}</Notice><AvailableAppointments refreshKey={version} onBooked={reload} /><section className="my-appointments" aria-label="My Appointments"><div className="page-heading"><div><h2>My Appointments</h2><p className="muted">Your upcoming and previous bookings · Asia/Colombo time</p></div></div><LoadingError resource={resource} />{!resource.loading && !resource.error && <section className="panel">{!resource.data.items.length && <div className="empty-state">No bookings yet. Choose published availability above.</div>}{resource.data.items.map(item => <article className="support-record appointment-booking" key={item._id}><header><div><h3>{item.slot?.title || "Staff appointment"}</h3><p className="muted">{item.slot?.serviceName} {item.staff?.name}</p></div><Badge value={item.status} /></header><p><strong>{appointmentDateTime(item.date)}</strong>{item.slot?.endsAt && <> – {appointmentDateTime(item.slot.endsAt)}</>}</p><p>{item.slot?.location || "Location not specified"}</p>{item.slot?.instructions && <p className="preserve-lines">{item.slot.instructions}</p>}<p className="preserve-lines">{item.reason}</p><small>Booking ID: {item._id} · Submitted {appointmentDateTime(item.createdAt)}</small>{item.history?.length > 0 && <details><summary>Booking history</summary><ol>{item.history.map(entry => <li key={entry._id}>{entry.status} · {appointmentDateTime(entry.at)}</li>)}</ol></details>}{["Pending", "Approved"].includes(item.status) && new Date(item.date) > new Date() && <button className="secondary" onClick={() => { setCancelling(item); setError(""); }}>Cancel booking</button>}</article>)}<Pagination data={resource.data} page={page} onChange={setPage} /></section>}</section>{cancelling && <Modal title="Cancel booking?" busy={busy} onClose={() => setCancelling(null)}><p>This cancels your appointment on {appointmentDateTime(cancelling.date)} and releases the space for another student.</p><Notice error>{error}</Notice><footer className="modal-actions"><button className="secondary" disabled={busy} onClick={() => setCancelling(null)}>Keep booking</button><button disabled={busy} onClick={cancel}>{busy ? "Cancelling..." : "Confirm cancellation"}</button></footer></Modal>}</main>;
+}

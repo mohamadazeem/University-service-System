@@ -22,6 +22,8 @@ import StaffRegister from "./pages/StaffRegister";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffLayout from "./pages/StaffLayout";
 import StaffSupport from "./pages/StaffSupport";
+import AppointmentAvailability from "./pages/AppointmentAvailability";
+import StudentAppointments from "./pages/StudentAppointments";
 import StaffApprovals from "./admin/StaffApprovals";
 export default function App() {
   return (
@@ -40,6 +42,7 @@ export default function App() {
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffDashboard />} />
               <Route path="requests" element={<StaffDashboard />} />
+              <Route path="appointments" element={<AppointmentAvailability />} />
               <Route path="bookings" element={<StaffSupport key="bookings" kind="bookings" />} />
               <Route path="complaints" element={<StaffSupport key="complaints" kind="complaints" />} />
               <Route path="profile" element={<Profile />} />
@@ -53,7 +56,7 @@ export default function App() {
           </Route>
           <Route element={<ProtectedRoute roles={["student"]} />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/appointments" element={<Support key="student-appointments" kind="appointments" />} />
+            <Route path="/appointments" element={<StudentAppointments />} />
             <Route path="/complaints" element={<Support key="student-complaints" kind="complaints" />} />
             <Route path="/my-requests" element={<MyRequests />} />
             <Route path="/request-service" element={<RequestService />} />
@@ -66,6 +69,7 @@ export default function App() {
               <Route path="staff-approvals" element={<StaffApprovals />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="appointments" element={<Support key="admin-appointments" kind="appointments" admin />} />
+              <Route path="appointment-slots" element={<AppointmentAvailability admin />} />
               <Route path="complaints" element={<Support key="admin-complaints" kind="complaints" admin />} />
               <Route path="notifications" element={<Notifications admin />} />
             </Route>

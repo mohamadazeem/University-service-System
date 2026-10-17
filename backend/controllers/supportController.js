@@ -20,7 +20,7 @@ const scope = (Model, user) => user.role === "student" ? { student: user.id }
 const populateFor = Model => Model === Appointment ? [
   { path: "student", select: "name studentId email" },
   { path: "staff", select: "name" },
-  { path: "slot", select: "startsAt location" },
+  { path: "slot", select: "startsAt endsAt location building room title description instructions serviceName category durationMinutes" },
 ] : [{ path: "student", select: "name studentId email" }];
 exports.list = Model => async (req, res) => {
   const booking = Model === Appointment;
@@ -56,6 +56,7 @@ exports.list = Model => async (req, res) => {
   }
   let query = Model.find(filter).sort(p.sort).skip(p.skip).limit(p.limit);
   if (req.user.role !== "student") query = query.populate(populateFor(Model));
+  else if (booking) query = query.populate(populateFor(Model).slice(1));
   if (req.user.role === "staff" && !booking) query = query.select("-description -response -history");
   const [items, total] = await Promise.all([query, Model.countDocuments(filter)]);
   res.json({ items, total, page: p.page, pages: Math.ceil(total / p.limit), statuses, priorities, categories });
@@ -76,117 +77,11 @@ exports.overview = async (req, res) => {
   ]);
   res.json({ pendingBookings, upcomingBookings, unresolvedComplaints, highPriorityComplaints });
 };
-exports.slots = async (req, res) => {
-  const booked = await Appointment.find({
-    reservedSlot: {
-      $exists: true
-    }
-  }).select("reservedSlot");
-  const staff = await User.find({
-    role: "staff",
-    approvalStatus: "approved",
-    active: {
-      $ne: false
-    }
-  }).select("_id");
-  const items = await Slot.find({
-    active: true,
-    staff: {
-      $in: staff.map(row => row._id)
-    },
-    startsAt: {
-      $gt: new Date()
-    },
-    _id: {
-      $nin: booked.map(row => row.reservedSlot)
-    }
-  }).populate("staff", "name").sort({
-    startsAt: 1
-  }).limit(100);
-  res.json({
-    items
-  });
-};
-exports.createSlot = async (req, res) => {
-  v.body(req.body, ["staff", "startsAt", "location"]);
-  const staff = v.id(req.body.staff);
-  const input = v.text(req.body.startsAt, "Start time", 35);
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(input)) v.fail("Provide a UTC date and time");
-  const startsAt = new Date(input);
-  if (!Number.isFinite(startsAt.getTime()) || startsAt <= new Date()) v.fail("Choose a future date and time");
-  if (startsAt.toISOString().slice(0, 19) !== input.slice(0, 19)) v.fail("Choose a valid date and time");
-  if (!(await User.exists({
-    _id: staff,
-    role: "staff",
-      approvalStatus: "approved",
-    active: {
-      $ne: false
-    }
-  }))) v.fail("Choose an active staff member");
-  const slot = await Slot.create({
-    staff,
-    startsAt,
-    location: v.text(req.body.location, "Location", 200, false),
-  });
-  res.status(201).json({
-    slot
-  });
-};
-exports.closeSlot = async (req, res) => {
-  const slot = await Slot.findByIdAndUpdate(v.id(req.params.id), {
-    $set: {
-      active: false
-    }
-  }, {
-    returnDocument: "after"
-  });
-  if (!slot) v.fail("Availability not found", 404);
-  res.json({
-    message: "Availability closed. Existing bookings remain unchanged."
-  });
-};
-exports.book = async (req, res) => {
-  v.body(req.body, ["slot", "reason"]);
-  const reason = v.text(req.body.reason, "Reason", 2000);
-  const slot = await Slot.findOne({
-    _id: v.id(req.body.slot),
-    active: true,
-    startsAt: {
-      $gt: new Date()
-    }
-  });
-  if (!slot || !(await User.exists({
-    _id: slot.staff,
-    role: "staff",
-      approvalStatus: "approved",
-    active: {
-      $ne: false
-    }
-  }))) v.fail("This appointment time is unavailable", 409);
-  // Unique reservedSlot prevents simultaneous bookings of the same availability.
-  let appointment;
-  try { appointment = await Appointment.create({
-    student: req.user.id,
-    slot: slot._id,
-    reservedSlot: slot._id,
-    staff: slot.staff,
-    date: slot.startsAt,
-    time: slot.startsAt.toISOString().slice(11, 16),
-    reason,
-    notificationEvents: [event(req.user.id, "Your appointment booking is pending approval.")]
-  });
-  } catch (error) {
-    if (error.code === 11000) v.fail("This appointment time is already booked. Choose another available time.", 409);
-    throw error;
-  }
-  await tryFlush(Appointment, req.user.id);
-  res.status(201).json({
-    appointment: {
-      _id: appointment._id,
-      status: appointment.status
-    }
-  });
-};
+const scheduling = require("./appointmentController");
+exports.slots = scheduling.list(true);
+exports.createSlot = scheduling.create(true);
+exports.closeSlot = scheduling.closeLegacy;
+exports.book = scheduling.book;
 exports.submitComplaint = async (req, res) => {
   v.body(req.body, ["subject", "description", "priority", "category"]);
   const complaint = await Complaint.create({
@@ -207,6 +102,7 @@ exports.submitComplaint = async (req, res) => {
 };
 exports.review = Model => async (req, res) => {
   const isAppointment = Model === Appointment;
+  if (isAppointment) return scheduling.review(req, res);
   v.body(req.body, isAppointment ? ["status", "expectedStatus", "expectedUpdatedAt"] : ["status", "expectedStatus", "expectedUpdatedAt", "response", "priority"]);
   const transitions = isAppointment ? appointments : complaints;
   const status = v.choice(req.body.status, Object.keys(transitions), "status");

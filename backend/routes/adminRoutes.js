@@ -33,4 +33,8 @@ router.post("/appointment-slots", support.createSlot);
 router.delete("/appointment-slots/:id", support.closeSlot);
 router.get("/complaints", support.list(support.Complaint));
 router.patch("/complaints/:id", support.review(support.Complaint));
+const scheduling = require("../controllers/appointmentController");
+router.get("/appointment-slots", scheduling.list(false));
+router.get("/appointment-slots/:id", scheduling.details);
+router.patch("/appointment-slots/:id", scheduling.update);
 module.exports = router;

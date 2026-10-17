@@ -4,6 +4,8 @@ An existing React/Vite student portal extended with a secure Express/MongoDB adm
 
 ## Features
 
+- Staff publish and manage service appointment availability, locations and capacity; students discover, book and cancel appointments. See [availability workflow, permissions and transaction requirements](docs/APPOINTMENT-AVAILABILITY.md).
+
 - Staff and lecturers register with name, email, required Staff ID and password, await Admin approval, then process only service requests assigned to them by an administrator. See [staff workflow, API, existing-account handling and verification](docs/STAFF-WORKFLOW.md).
 - Students register, sign in, browse active university services, submit normal or urgent requests, and track status and staff comments.
 - `/` retains the original campus homepage. Its Sign In link opens `/login`, with the unified Student, Staff / Lecturer, and Admin role switcher. Existing role-specific login URLs preselect the role. Backend account permissions and staff approval checks are preserved. See [login details](docs/LOGIN.md).

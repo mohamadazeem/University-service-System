@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    appointmentScheduleVersion: { type: Number, default: 0, select: false },
     active: { type: Boolean, default: true },
 
     studentId: {

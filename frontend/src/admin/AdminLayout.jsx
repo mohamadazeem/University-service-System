@@ -18,6 +18,7 @@ const links = [
   ["/admin/staff-approvals", "Staff approvals", "users"],
   ["/admin/services", "Services", "services"],
   ["/admin/appointments", "Appointments", "appointments"],
+  ["/admin/appointment-slots", "Availability", "appointments"],
   ["/admin/complaints", "Complaints", "complaints"],
   ["/admin/notifications", "Notifications", "notifications"],
 ];

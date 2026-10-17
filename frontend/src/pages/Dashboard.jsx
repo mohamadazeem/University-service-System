@@ -1,3 +1,4 @@
+import { AvailableAppointments } from "./StudentAppointments";
 import { Link } from "react-router-dom";
 import useAuth from "../auth/useAuth";
 import useResource from "../hooks/useResource";
@@ -79,6 +80,7 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="button-row section-space"><Link className="button-link secondary" to="/appointments">Appointments</Link><Link className="button-link secondary" to="/complaints">Complaints & support</Link><Link className="button-link secondary" to="/notifications">Notifications</Link></div>
+          <AvailableAppointments preview />
           <section className="panel">
             <header className="panel-heading">
               <h2>Recent requests</h2>

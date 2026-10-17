@@ -4,6 +4,8 @@ const appointmentSchema = new mongoose.Schema(
   {
     notificationEvents: { type: [require("../utils/notificationEvent").schema], select: false, default: undefined },
     slot: { type: mongoose.Schema.Types.ObjectId, ref: "AppointmentSlot" },
+    activeReservation: { type: Boolean, default: false },
+    history: [{ status: String, actor: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, at: Date }],
     reservedSlot: { type: mongoose.Schema.Types.ObjectId, unique: true, sparse: true },
     student: {
       type: mongoose.Schema.Types.ObjectId,
@@ -42,5 +44,7 @@ const appointmentSchema = new mongoose.Schema(
   },
 );
 
+appointmentSchema.index({ slot: 1, student: 1 }, { unique: true, partialFilterExpression: { activeReservation: true } });
+appointmentSchema.index({ slot: 1, status: 1 });
 appointmentSchema.index({ staff: 1, status: 1, date: 1 });
 module.exports = mongoose.model("Appointment", appointmentSchema);

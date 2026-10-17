@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 const student = { id: "222222222222222222222222", name: "UI Student", role: "student", email: "ui@example.test" };
 const admin = { ...student, id: "111111111111111111111111", name: "UI Admin", role: "admin" };
-const slot = { _id: "333333333333333333333333", startsAt: "2099-01-20T09:00:00.000Z", staff: { _id: "444444444444444444444444", name: "Support staff" } };
+const slot = { status: "Published", capacity: 1, remaining: 1, endsAt: "2099-01-20T09:30:00.000Z", title: "Student support", _id: "333333333333333333333333", startsAt: "2099-01-20T09:00:00.000Z", staff: { _id: "444444444444444444444444", name: "Support staff" } };
 async function session(page, user) {
   await page.addInitScript(() => localStorage.setItem("token", "ui-fixture"));
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user } }));
@@ -75,7 +75,7 @@ test("role switcher supports keyboard selection, correct login payloads and regi
 test("student books, submits a complaint and reads notifications", async ({ page }) => {
   await session(page, student);
   let appointments = [], complaints = [], read = false;
-  await page.route("**/api/appointments/availability", route => route.fulfill({ json: { items: [slot] } }));
+  await page.route("**/api/appointments/availability**", route => route.fulfill({ json: { items: [slot], total: 1, pages: 1 } }));
   await page.route(/\/api\/appointments(?:\?|$)/, async route => {
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
@@ -99,8 +99,8 @@ test("student books, submits a complaint and reads notifications", async ({ page
   page.on("pageerror", e => errors.push(e.message));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/appointments");
-  await expect(page.getByText("No appointments yet.", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "Book appointment" }).click();
+  await expect(page.getByText("No bookings yet.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Book appointment", exact: true }).click();
   await page.getByLabel("Available time").selectOption(slot._id);
   await page.getByLabel("Reason").fill("Academic advice");
   await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -124,7 +124,7 @@ test("student books, submits a complaint and reads notifications", async ({ page
 test("admin publishes availability, reviews complaints and navigates mobile sidebar", async ({ page }) => {
   await session(page, admin);
   await page.route("**/api/admin/staff", route => route.fulfill({ json: { staff: [slot.staff] } }));
-  await page.route("**/api/appointments/availability", route => route.fulfill({ json: { items: [slot] } }));
+  await page.route("**/api/appointments/availability**", route => route.fulfill({ json: { items: [slot], total: 1, pages: 1 } }));
   await page.route("**/api/admin/appointment-slots", async route => {
     expect(route.request().postDataJSON().staff).toBe(slot.staff._id);
     await route.fulfill({ status: 201, json: { slot } });
@@ -152,7 +152,7 @@ test("admin publishes availability, reviews complaints and navigates mobile side
   await page.getByRole("dialog").getByRole("combobox", { name: "Status", exact: true }).selectOption("Resolved");
   await page.getByLabel("Response").fill("We have resolved this concern.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator(".support-record .badge")).toHaveText("Resolved");
+  await expect(page.locator(".support-record .badge-resolved")).toHaveText("Resolved");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: "test-results/admin-complaints-mobile.png", fullPage: true });
 });
@@ -161,7 +161,7 @@ test("empty staff setup explains disabled publishing and refreshes after staff i
   await session(page, admin);
   let staff = [];
   await page.route("**/api/admin/staff", route => route.fulfill({ json: { staff } }));
-  await page.route("**/api/appointments/availability", route => route.fulfill({ json: { items: [] } }));
+  await page.route("**/api/appointments/availability**", route => route.fulfill({ json: { items: [] } }));
   await page.route("**/api/admin/appointments?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
   await page.goto("/admin/appointments");
   await expect(page.getByRole("heading", { name: "Add a staff member to enable bookings" })).toBeVisible();
@@ -212,9 +212,9 @@ test("saved dark theme covers student and administrator panels and dialogs", asy
   await page.addInitScript(() => localStorage.setItem("university-theme", "dark"));
   await session(page, student);
   await page.route("**/api/appointments?**", route => route.fulfill({ json: { items: [], pages: 0, total: 0 } }));
-  await page.route("**/api/appointments/availability", route => route.fulfill({ json: { items: [slot] } }));
+  await page.route("**/api/appointments/availability**", route => route.fulfill({ json: { items: [slot], total: 1, pages: 1 } }));
   await page.goto("/appointments");
-  await page.getByRole("button", { name: "Book appointment" }).click();
+  await page.getByRole("button", { name: "Book appointment", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCSS("background-color", "rgb(21, 34, 53)");
   await expect(page.getByLabel("Reason")).toHaveCSS("background-color", "rgb(21, 34, 53)");
   await page.getByRole("button", { name: "Cancel" }).click();

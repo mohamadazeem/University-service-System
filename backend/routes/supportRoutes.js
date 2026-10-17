@@ -6,6 +6,7 @@ router.use(protect);
 router.get("/appointments/availability", authorize("student", "admin"), c.slots);
 router.get("/appointments", authorize("student"), c.list(c.Appointment));
 router.post("/appointments", authorize("student"), c.book);
+router.patch("/appointments/:id", authorize("student"), require("../controllers/appointmentController").review);
 router.get("/complaints", authorize("student"), c.list(c.Complaint));
 router.post("/complaints", authorize("student"), c.submitComplaint);
 router.get("/notifications", c.notifications);
