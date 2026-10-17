@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema(
     department: { type: String, trim: true, maxlength: 120 },
     staffId: {
       type: String, unique: true, sparse: true, trim: true, maxlength: 50,
-      set: (value) => typeof value === "string" ? value.trim().toUpperCase() || undefined : value,
+      set: require("../utils/staffId").normalize,
     },
     approvalStatus: {
       type: String, enum: ["pending", "approved", "rejected"],

@@ -7,16 +7,15 @@ const registerStaff = async (req, res) => {
   const name = v.text(input.name, "Name", 100);
   const email = v.email(input.email);
   const password = v.password(input.password);
-  if (password !== input.confirmPassword) v.fail("Passwords do not match");
-  const department = await require("../utils/departments").validate(input.department);
-  const staffId = v.text(input.staffId, "Staff ID", 50, false)?.toUpperCase();
+  const staffId = require("../utils/staffId").validate(input.staffId);
   if (await User.exists({ email })) v.fail("Email already registered", 409);
-  if (staffId && await User.exists({ staffId })) v.fail("Staff ID already registered", 409);
+  if (await User.exists({ staffId: { $regex: `^\\s*${v.escapeRegex(staffId)}\\s*$`, $options: "i" } }))
+    v.fail("Staff ID already registered", 409);
   await User.create({
-    name, email, password: await bcrypt.hash(password, 12), department,
-    ...(staffId && { staffId }), role: "staff", approvalStatus: "pending", active: true,
+    name, email, password: await bcrypt.hash(password, 12), staffId,
+    role: "staff", approvalStatus: "pending", active: true,
   });
-  res.status(201).json({ message: "Registration submitted successfully. Your account is awaiting administrator approval." });
+  res.status(201).json({ message: "Registration submitted successfully. Please wait for administrator approval before signing in." });
 };
 const registerUser = async (req, res) => {
   const input = req.body || {};

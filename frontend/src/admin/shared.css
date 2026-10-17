@@ -183,6 +183,7 @@ tbody tr:hover {
   flex: 2;
   min-width: 220px;
 }
+.filters .filter-control { flex: 1; min-width: 120px; }
 .filters input,
 .filters select {
   font-size: 12px;

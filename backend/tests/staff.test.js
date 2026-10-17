@@ -25,34 +25,37 @@ const call = async (path, { user, method = "GET", data, claims = {} } = {}) => {
   });
   return { status: response.status, ...await response.json() };
 };
-const account = (overrides = {}) => ({ _id: staffId, role: "staff", active: true, department: "Registry", approvalStatus: "approved", ...overrides });
+const account = (overrides = {}) => ({ _id: staffId, role: "staff", active: true, approvalStatus: "approved", ...overrides });
 const mockAuth = (t, user = account()) => t.mock.method(User, "findById", () => ({ select: async () => user }));
-const mockServices = (t) => t.mock.method(Service, "find", (filter) => {
-  assert.deepEqual(filter, { department: "Registry" });
-  return { select: () => ({ lean: async () => [{ _id: serviceId }] }) };
-});
 
 test("staff registration forces pending staff, normalizes unique ID and hashes password", async (t) => {
-  t.mock.method(Service, "distinct", async () => ["Registry"]);
   t.mock.method(User, "exists", async () => false);
   let saved;
   t.mock.method(User, "create", async (values) => { saved = values; return values; });
   const result = await call("/auth/staff/register", { method: "POST", data: {
-    name: "Lecturer", email: "LECTURER@EXAMPLE.TEST", staffId: " emp-01 ", department: "Registry",
-    password: "valid-password", confirmPassword: "valid-password", role: "admin", approvalStatus: "approved", reviewedBy: adminId,
+    name: "Lecturer", email: "LECTURER@GMAIL.COM", staffId: " emp-01 ",
+    password: "valid-password", role: "admin", approvalStatus: "approved", reviewedBy: adminId, department: "Forged",
   } });
   assert.equal(result.status, 201);
   assert.equal(saved.role, "staff"); assert.equal(saved.approvalStatus, "pending");
-  assert.equal(saved.email, "lecturer@example.test"); assert.equal(saved.staffId, "EMP-01");
-  assert.equal(saved.reviewedBy, undefined);
+  assert.equal(saved.email, "lecturer@gmail.com"); assert.equal(saved.staffId, "EMP-01");
+  assert.equal(saved.reviewedBy, undefined); assert.equal(saved.department, undefined);
   assert.ok(await bcrypt.compare("valid-password", saved.password));
   assert.equal(result.password, undefined); assert.equal(result.token, undefined);
 });
 
-test("staff registration rejects invalid passwords, confirmation, department and duplicate identifiers", async (t) => {
-  t.mock.method(Service, "distinct", async () => ["Registry"]);
-  const valid = { name: "Staff", email: "staff@example.test", password: "valid-password", confirmPassword: "valid-password", department: "Registry", staffId: "EMP-1" };
-  for (const change of [{ password: "short" }, { email: "bad" }, { name: "" }, { confirmPassword: "different" }, { department: "Forged" }])
+test("staff registration handles a unique-index race without exposing database fields", async (t) => {
+  t.mock.method(User, "exists", async () => false);
+  t.mock.method(User, "create", async () => { throw Object.assign(new Error("private database details"), { code: 11000 }); });
+  const result = await call("/auth/staff/register", { method: "POST", data: { name: "Staff", email: "staff@gmail.com", staffId: "EMP-2", password: "valid-password" } });
+  assert.equal(result.status, 409); assert.ok(!result.message.includes("private"));
+});
+
+test("four-field staff registration validates every required field, password policy and duplicate identifiers", async (t) => {
+  const valid = { name: "Staff", email: "staff@example.test", password: "valid-password", staffId: "EMP-1" };
+  for (const key of Object.keys(valid))
+    assert.equal((await call("/auth/staff/register", { method: "POST", data: { ...valid, [key]: undefined } })).status, 400);
+  for (const change of [{ password: "short" }, { password: "a".repeat(73) }, { email: "bad" }, { name: "" }, { staffId: "   " }, { staffId: "a".repeat(51) }])
     assert.equal((await call("/auth/staff/register", { method: "POST", data: { ...valid, ...change } })).status, 400);
   t.mock.method(User, "exists", async () => true);
   assert.equal((await call("/auth/staff/register", { method: "POST", data: valid })).status, 409);
@@ -76,7 +79,7 @@ test("pending, rejected, legacy and inactive staff cannot log in; approved staff
   assert.equal((await call("/auth/login", { method: "POST", data: { email: user.email, password: "password" } })).status, 401);
   user.active = true;
   const result = await call("/auth/login", { method: "POST", data: { email: user.email, password: "password", portal: "staff" } });
-  assert.equal(result.status, 200); assert.equal(result.user.department, "Registry");
+  assert.equal(result.status, 200); assert.equal(result.user.department, undefined);
   assert.equal(jwt.verify(result.token, process.env.JWT_SECRET).id, staffId);
   user.role = "student";
   const wrongPortal = await call("/auth/login", { method: "POST", data: { email: user.email, password: "password", portal: "staff" } });
@@ -106,48 +109,63 @@ test("only admins can review staff, and all staff operations require approved st
       assert.equal((await call(path, { user: staffId })).status, 403);
     }
   assert.equal((await call("/admin/staff-registrations")).status, 401);
+  user.role = "staff";
+  for (const path of ["/admin/users", "/admin/services", "/admin/requests"])
+    assert.equal((await call(path, { user: staffId })).status, 403);
 });
 
-test("staff request list and statistics use database department, ignoring browser department", async (t) => {
-  mockAuth(t); mockServices(t);
-  const check = (filter) => assert.deepEqual(filter.serviceRef, { $in: [serviceId] });
+test("approved staff without a department list all requests and receive all-department statistics", async (t) => {
+  mockAuth(t);
+  const check = (filter) => assert.equal(filter.serviceRef, undefined);
   t.mock.method(Request, "find", (filter) => { check(filter); return { populate() { return this; }, sort() { return this; }, skip() { return this; }, limit: async () => [] }; });
   t.mock.method(Request, "countDocuments", async (filter) => { check(filter); return 0; });
-  assert.equal((await call("/staff/requests?department=Library", { user: staffId, claims: { department: "Library" } })).status, 200);
+  assert.equal((await call("/staff/requests", { user: staffId, claims: { department: "Library", staffId: "Forged" } })).status, 200);
   const summary = await call("/staff/dashboard?department=Library", { user: staffId });
-  assert.equal(summary.status, 200); assert.equal(summary.department, "Registry");
+  assert.equal(summary.status, 200); assert.equal(summary.department, undefined);
 });
 
-test("cross-department request IDs are denied for both reads and writes", async (t) => {
-  mockAuth(t); mockServices(t);
-  t.mock.method(Request, "findOne", (filter) => {
-    assert.equal(filter._id, requestId);
-    assert.deepEqual(filter.serviceRef, { $in: [serviceId] });
-    return { populate: async () => null, then: (resolve) => resolve(null) };
+test("approved staff can open and update another department's request by ID", async (t) => {
+  mockAuth(t, account({ department: "Registry" }));
+  const record = { _id: requestId, student: adminId, status: "Pending", serviceRef: serviceId, serviceDetails: { department: "Library" }, updatedAt: new Date() };
+  t.mock.method(Request, "findById", (id) => {
+    assert.equal(id, requestId);
+    return { populate: async () => record, then: (resolve) => resolve(record) };
   });
-  assert.equal((await call(`/staff/requests/${requestId}`, { user: staffId })).status, 404);
-  assert.equal((await call(`/staff/requests/${requestId}`, { user: staffId, method: "PATCH", data: { staffComment: "Forged" } })).status, 404);
+  t.mock.method(Request, "findOneAndUpdate", (filter, update) => {
+    assert.equal(filter._id, requestId); assert.equal(filter.serviceRef, undefined);
+    assert.equal(update.$set.staffComment, "Reviewed across departments");
+    return { populate: async () => ({ ...record, ...update.$set }) };
+  });
+  t.mock.method(require("../utils/notifications"), "tryFlush", async () => {});
+  assert.equal((await call(`/staff/requests/${requestId}`, { user: staffId })).request.serviceDetails.department, "Library");
+  assert.equal((await call(`/staff/requests/${requestId}`, { user: staffId, method: "PATCH", data: { status: "Processing", expectedStatus: "Pending", staffComment: "Reviewed across departments" } })).status, 200);
 });
 
 test("staff cannot mass-assign ownership, service, department, assignment or approval", async (t) => {
-  mockAuth(t); mockServices(t);
+  mockAuth(t);
   for (const key of ["student", "service", "serviceRef", "department", "assignedStaff", "approvalStatus", "notificationEvents"])
     assert.equal((await call(`/staff/requests/${requestId}`, { user: staffId, method: "PATCH", data: { [key]: adminId } })).status, 400);
 });
 
-test("missing or unconfigured staff department fails closed", async (t) => {
-  const user = account({ department: undefined }); mockAuth(t, user);
-  assert.equal((await call("/staff/requests", { user: staffId })).status, 403);
-  user.department = "Registry";
-  t.mock.method(Service, "find", () => ({ select: () => ({ lean: async () => [] }) }));
-  assert.equal((await call("/staff/dashboard", { user: staffId })).status, 403);
+test("department is an optional informational request filter for staff and admins", async (t) => {
+  const user = account(); mockAuth(t, user);
+  t.mock.method(Service, "find", (filter) => {
+    assert.deepEqual(filter, { department: "Library" });
+    return { select: () => ({ lean: async () => [{ _id: serviceId }] }) };
+  });
+  const check = (filter) => assert.deepEqual(filter.serviceRef, { $in: [serviceId] });
+  t.mock.method(Request, "find", (filter) => { check(filter); return { populate() { return this; }, sort() { return this; }, skip() { return this; }, limit: async () => [] }; });
+  t.mock.method(Request, "countDocuments", async (filter) => { check(filter); return 0; });
+  assert.equal((await call("/staff/requests?department=Library", { user: staffId })).status, 200);
+  user.role = "admin";
+  assert.equal((await call("/admin/requests?department=Library", { user: staffId })).status, 200);
 });
 
 test("staff edits reject stale detail timestamps and invalid status transitions", async (t) => {
-  mockAuth(t); mockServices(t);
+  mockAuth(t);
   const updatedAt = new Date("2026-10-17T10:00:00Z");
   const request = { _id: requestId, student: adminId, status: "Pending", updatedAt };
-  t.mock.method(Request, "findOne", async () => request);
+  t.mock.method(Request, "findById", async () => request);
   const patch = (data) => call(`/staff/requests/${requestId}`, { user: staffId, method: "PATCH", data });
   assert.equal((await patch({ staffComment: "Stale", expectedUpdatedAt: "2026-10-17T09:00:00Z" })).status, 409);
   assert.equal((await patch({ staffComment: "Malformed", expectedUpdatedAt: "invalid" })).status, 400);
@@ -157,9 +175,8 @@ test("staff edits reject stale detail timestamps and invalid status transitions"
 
 test("admin review validates fields and uses staff role, expected status and timestamp conditions", async (t) => {
   mockAuth(t, account({ _id: adminId, role: "admin" }));
-  t.mock.method(Service, "distinct", async () => ["Registry"]);
   const timestamp = new Date().toISOString();
-  const body = { approvalStatus: "approved", expectedStatus: "pending", expectedUpdatedAt: timestamp, department: "Registry" };
+  const body = { approvalStatus: "approved", expectedStatus: "pending", expectedUpdatedAt: timestamp };
   let writes = 0;
   t.mock.method(User, "findOneAndUpdate", async (filter, update) => {
     writes++; assert.equal(filter.role, "staff"); assert.equal(filter._id, staffId);

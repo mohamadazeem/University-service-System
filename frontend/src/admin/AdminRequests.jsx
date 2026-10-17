@@ -56,6 +56,8 @@ function RequestEditor({ data, staff, onClose, onSaved, staffMode }) {
         <dd>{request.student?.phone || "Not provided"}</dd>
         <dt>Service</dt>
         <dd>{request.service}</dd>
+        <dt>Department</dt>
+        <dd>{request.serviceDetails?.department || "Department unavailable"}</dd>
         <dt>Description</dt>
         <dd className="preserve-lines">{request.description}</dd>
         <dt>Priority</dt>
@@ -189,6 +191,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
     status: statuses.includes(params.get("status")) ? params.get("status") : "",
     priority: "",
     service: "",
+    department: "",
     from: "",
     to: "",
     sort: "createdAt",
@@ -197,6 +200,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState("");
   const resource = useResource(listUrl(`/${staffMode ? "staff" : "admin"}/requests`, filters, page));
+  const departments = useResource("/auth/departments");
   const filter = (event) => {
     setFilters({ ...filters, [event.target.name]: event.target.value });
     setPage(1);
@@ -209,7 +213,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
           <p className="eyebrow">STUDENT SUPPORT</p>
           <h1>Service requests</h1>
           <p className="muted">
-            Review requests, coordinate staff and track progress.
+            {staffMode ? "Review and process service requests across all university departments." : "Review requests, coordinate staff and track progress."}
           </p>
         </div>
         <button className="secondary" onClick={resource.reload}>
@@ -257,6 +261,12 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
           </label>
         </div>
         <div className="filters filters-secondary">
+          <div className="filter-control"><label htmlFor="request-department">Department</label>
+            <select id="request-department" name="department" value={filters.department} onChange={filter}>
+              <option value="">All departments</option>
+              {departments.data?.departments.map((department) => <option key={department}>{department}</option>)}
+            </select>
+          </div>
           <label>
             From date (UTC)
             <input
@@ -295,6 +305,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
                 status: "",
                 priority: "",
                 service: "",
+                department: "",
                 from: "",
                 to: "",
                 sort: "createdAt",
@@ -307,6 +318,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
           </button>
         </div>
         <LoadingError resource={resource} />
+        {departments.error && <Notice error>Department filters could not load. <button className="secondary" onClick={departments.reload}>Retry departments</button></Notice>}
         {!resource.loading && !resource.error && (
           <>
             <div className="table-scroll">
@@ -315,6 +327,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
                   <tr>
                     <th>Student / request ID</th>
                     <th>Service</th>
+                    <th>Department</th>
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Assigned staff</th>
@@ -332,6 +345,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
                         <small className="request-id">{row._id}</small>
                       </td>
                       <td>{row.service}</td>
+                      <td>{row.serviceDetails?.department || "Department unavailable"}</td>
                       <td>
                         <Badge value={row.priority} />
                       </td>

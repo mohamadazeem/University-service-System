@@ -1,10 +1,12 @@
 const Request = require("../models/Request");
 const User = require("../models/user");
+const Service = require("../models/service");
 const v = require("../utils/validation");
 const { statuses, transitions } = require("../utils/requestStatus");
 const populate = [
   { path: "student", select: "name email studentId phone" },
   { path: "assignedStaff", select: "name email role active" },
+  { path: "serviceDetails", select: "name department" },
 ];
 const listRequests = async (req, res) => {
   const p = v.paging(req.query, [
@@ -14,7 +16,12 @@ const listRequests = async (req, res) => {
     "status",
     "priority",
   ]);
-  const filter = { ...req.requestScope };
+  const filter = {};
+  if (req.query.department) {
+    const department = v.text(req.query.department, "Department", 120);
+    const services = await Service.find({ department }).select("_id").lean();
+    filter.serviceRef = { $in: services.map((service) => service._id) };
+  }
   if (req.query.status)
     filter.status = v.choice(req.query.status, statuses, "status");
   if (req.query.priority)
@@ -74,8 +81,7 @@ const listRequests = async (req, res) => {
 };
 const getRequest = async (req, res) => {
   const recordId = v.id(req.params.id);
-  const query = req.requestScope ? Request.findOne({ _id: recordId, ...req.requestScope }) : Request.findById(recordId);
-  const request = await query.populate(
+  const request = await Request.findById(recordId).populate(
     populate,
   );
   if (!request) v.fail("Request not found", 404);
@@ -90,9 +96,7 @@ const updateRequest = async (req, res) => {
     "staffComment",
   ]);
   const recordId = v.id(req.params.id);
-  const request = req.requestScope
-    ? await Request.findOne({ _id: recordId, ...req.requestScope })
-    : await Request.findById(recordId);
+  const request = await Request.findById(recordId);
   if (!request) v.fail("Request not found", 404);
   const values = {};
   if (req.body.expectedUpdatedAt !== undefined) {
@@ -138,7 +142,7 @@ const updateRequest = async (req, res) => {
   if (!Object.keys(values).length) v.fail("No changes provided");
   // The condition prevents overwriting a concurrent status update.
   const updated = await Request.findOneAndUpdate(
-    { _id: recordId, status: request.status, updatedAt: request.updatedAt, ...req.requestScope },
+    { _id: recordId, status: request.status, updatedAt: request.updatedAt },
     { $set: values, $push: { notificationEvents: require("../utils/notificationEvent").event(request.student, `Your service request was updated${values.status ? ": " + values.status : ""}.`) } },
     { returnDocument: "after", runValidators: true },
   ).populate(populate);

@@ -135,7 +135,7 @@ test(
       const staffDetails = await call("/admin/staff-registrations/" + staff.user._id, "GET", undefined, adminToken);
       assert.equal((await call("/admin/staff-registrations/" + staff.user._id, "PATCH", {
         approvalStatus: "approved", expectedStatus: "pending",
-        expectedUpdatedAt: staffDetails.user.updatedAt, department: "Integration testing",
+        expectedUpdatedAt: staffDetails.user.updatedAt,
       }, adminToken)).status, 200);
       const staffLogin = await call("/auth/login", "POST", { email: staff.user.email, password });
       assert.equal(staffLogin.status, 200);

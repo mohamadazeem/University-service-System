@@ -61,4 +61,9 @@ const requestSchema = new mongoose.Schema(
 requestSchema.index({ status: 1, createdAt: -1 });
 requestSchema.index({ student: 1, createdAt: -1 });
 requestSchema.index({ serviceRef: 1 });
+// Informational join only; keep the stored reference and historical name intact.
+requestSchema.virtual("serviceDetails", {
+  ref: "Service", localField: "serviceRef", foreignField: "_id", justOne: true,
+});
+requestSchema.set("toJSON", { virtuals: true });
 module.exports = mongoose.model("Request", requestSchema);

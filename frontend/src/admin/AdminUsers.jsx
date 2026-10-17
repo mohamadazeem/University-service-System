@@ -113,7 +113,7 @@ function UserForm({ user, onClose, onSaved }) {
                 At least 8 characters; at most 72 UTF-8 bytes. Share it securely
                 with the account owner.
               </p>
-              {form.role === "staff" && <p className="notice">Staff accounts require department verification and approval under Staff approvals before signing in.</p>}
+              {form.role === "staff" && <p className="notice">Staff accounts require approval under Staff approvals before signing in. Approved staff can process requests across all university departments.</p>}
             </>
           )}
         </fieldset>

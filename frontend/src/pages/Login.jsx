@@ -43,7 +43,7 @@ export default function Login({ adminOnly = false, staffOnly = false }) {
         <span className="portal-icon"><PortalIcon admin={adminOnly} /></span>
         <p className="eyebrow">{adminOnly ? "ADMIN PORTAL" : staffOnly ? "STAFF PORTAL" : "STUDENT PORTAL"}</p>
         <h1 id="login-title">{adminOnly ? "Administrator sign in" : staffOnly ? "Staff sign in" : "Student sign in"}</h1>
-        <p className="muted">{adminOnly ? "Manage your university with confidence." : staffOnly ? "Sign in to review your department's service requests." : "Your next step starts here. Welcome back."}</p>
+        <p className="muted">{adminOnly ? "Manage your university with confidence." : staffOnly ? "Sign in to review service requests across all university departments." : "Your next step starts here. Welcome back."}</p>
         {location.state?.sessionRequired && <p className="notice" role="status">Please sign in to continue. Your session may have expired.</p>}
         <form onSubmit={submit} aria-busy={busy}>
           <fieldset disabled={busy}>

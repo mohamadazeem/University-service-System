@@ -29,7 +29,7 @@ const details = async (req, res) => {
   res.json({ user });
 };
 const review = async (req, res) => {
-  v.body(req.body, ["approvalStatus", "expectedStatus", "expectedUpdatedAt", "department"]);
+  v.body(req.body, ["approvalStatus", "expectedStatus", "expectedUpdatedAt"]);
   const id = v.id(req.params.id);
   if (id === req.user.id) v.fail("You cannot review your own account", 403);
   const approvalStatus = v.choice(req.body.approvalStatus, ["approved", "rejected"], "approval status");
@@ -37,13 +37,12 @@ const review = async (req, res) => {
   const timestamp = req.body.expectedUpdatedAt === null
     ? null : v.text(req.body.expectedUpdatedAt, "Last updated timestamp", 40);
   if (timestamp !== null && Number.isNaN(Date.parse(timestamp))) v.fail("Invalid last updated timestamp");
-  const department = await require("../utils/departments").validate(req.body.department);
   const reviewedAt = new Date();
-  const event = { status: approvalStatus, department, reviewedBy: req.user.id, reviewedAt };
+  const event = { status: approvalStatus, reviewedBy: req.user.id, reviewedAt };
   const user = await User.findOneAndUpdate({
     _id: id, role: "staff", updatedAt: timestamp === null ? null : new Date(timestamp), ...statusFilter(expected),
   }, {
-    $set: { approvalStatus, department, reviewedBy: req.user.id, reviewedAt },
+    $set: { approvalStatus, reviewedBy: req.user.id, reviewedAt },
     $push: { approvalHistory: event },
   }, { returnDocument: "after", runValidators: true });
   if (!user) v.fail("Registration changed or no longer exists. Reload its details before reviewing.", 409);

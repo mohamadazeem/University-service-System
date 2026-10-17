@@ -28,7 +28,7 @@ export default function PortalSelection() {
             <span className="portal-icon"><PortalIcon /></span>
             <p className="portal-caption">FOR STAFF AND LECTURERS</p>
             <h2>Staff Portal</h2>
-            <p className="portal-description">Review and process service requests for your department after administrator approval.</p>
+            <p className="portal-description">Review and process service requests across all university departments after administrator approval.</p>
             <Link className="button-link portal-action" to="/staff/login">Staff Login</Link>
             <Link to="/staff/register">Register as staff</Link>
           </article>
