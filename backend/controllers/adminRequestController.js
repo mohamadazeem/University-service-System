@@ -6,7 +6,7 @@ const { statuses, transitions } = require("../utils/requestStatus");
 const populate = [
   { path: "student", select: "name email studentId phone" },
   { path: "assignedStaff", select: "name email role active" },
-  { path: "serviceDetails", select: "name department" },
+  { path: "serviceDetails", select: "name department description" },
 ];
 const listRequests = async (req, res) => {
   const p = v.paging(req.query, [

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api, { errorMessage } from "../api/client";
 import useResource from "../hooks/useResource";
+import useDebouncedValue from "../hooks/useDebouncedValue";
 import Modal from "../components/Modal";
 import { Badge, Notice, Pagination, LoadingError } from "./AdminUI";
 import { listUrl, dateTime } from "./adminUtils";
@@ -19,7 +20,10 @@ function RequestEditor({ data, staff, onClose, onSaved, staffMode }) {
   const [confirming, setConfirming] = useState(false);
   const change = (event) =>
     setForm({ ...form, [event.target.name]: event.target.value });
+  const saving = useRef(false);
   const save = async () => {
+    if (saving.current) return;
+    saving.current = true;
     setBusy(true);
     setError("");
     try {
@@ -35,6 +39,7 @@ function RequestEditor({ data, staff, onClose, onSaved, staffMode }) {
       setError(errorMessage(err));
       setConfirming(false);
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   };
@@ -44,6 +49,7 @@ function RequestEditor({ data, staff, onClose, onSaved, staffMode }) {
         <Badge value={request.status} />
         <code>{request._id}</code>
       </div>
+      <h3>Student &amp; service information</h3>
       <dl className="detail-list">
         <dt>Student</dt>
         <dd>
@@ -58,7 +64,8 @@ function RequestEditor({ data, staff, onClose, onSaved, staffMode }) {
         <dd>{request.service}</dd>
         <dt>Department</dt>
         <dd>{request.serviceDetails?.department || "Department unavailable"}</dd>
-        <dt>Description</dt>
+        {request.serviceDetails?.description && <><dt>Service description</dt><dd className="preserve-lines">{request.serviceDetails.description}</dd></>}
+        <dt>Request description</dt>
         <dd className="preserve-lines">{request.description}</dd>
         <dt>Priority</dt>
         <dd>
@@ -70,11 +77,13 @@ function RequestEditor({ data, staff, onClose, onSaved, staffMode }) {
             <dd>{request.document}</dd>
           </>
         )}
+        <dt>Assigned staff</dt><dd>{request.assignedStaff?.name || "Unassigned"}</dd>
         <dt>Submitted</dt>
         <dd>{dateTime(request.createdAt)}</dd>
         <dt>Updated</dt>
         <dd>{dateTime(request.updatedAt)}</dd>
       </dl>
+      <h3>Request management</h3>
       <Notice error>{error}</Notice>
       {confirming ? (
         <div className="confirm-inline">
@@ -199,19 +208,20 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
   });
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState("");
-  const resource = useResource(listUrl(`/${staffMode ? "staff" : "admin"}/requests`, filters, page));
+  const search = useDebouncedValue(filters.q);
+  const resource = useResource(listUrl(`/${staffMode ? "staff" : "admin"}/requests`, { ...filters, q: staffMode ? search : filters.q }, page));
   const departments = useResource("/auth/departments");
   const filter = (event) => {
     setFilters({ ...filters, [event.target.name]: event.target.value });
     setPage(1);
   };
-  const close = () => setParams({}, { replace: true });
+  const close = () => { const next = new URLSearchParams(params); next.delete("request"); setParams(next, { replace: true }); };
   return (
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">STUDENT SUPPORT</p>
-          <h1>Service requests</h1>
+          {!staffMode && <p className="eyebrow">STUDENT SUPPORT</p>}
+          {staffMode ? <h2>Service requests</h2> : <h1>Service requests</h1>}
           <p className="muted">
             {staffMode ? "Review and process service requests across all university departments." : "Review requests, coordinate staff and track progress."}
           </p>
@@ -222,7 +232,14 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
       </div>
       <Notice>{notice}</Notice>
       <section className="panel">
-        <div className="filters">
+        {staffMode ? <div className="staff-filters">
+          <label className="staff-search">Search requests<input name="q" value={filters.q} onChange={filter} placeholder="Student, full request ID or service" maxLength={100} /></label>
+          <label>Status<select aria-label="Status" name="status" value={filters.status} onChange={filter}><option value="">All statuses</option>{statuses.map(status => <option key={status}>{status}</option>)}</select></label>
+          <label>Department<select aria-label="Department" name="department" value={filters.department} onChange={filter}><option value="">All departments</option>{departments.data?.departments.map(department => <option key={department}>{department}</option>)}</select></label>
+          <label>Sort by<select aria-label="Sort by" value={filters.sort + ":" + filters.order} onChange={event => { const [sort, order] = event.target.value.split(":"); setFilters({ ...filters, sort, order }); setPage(1); }}><option value="createdAt:desc">Newest first</option><option value="createdAt:asc">Oldest first</option><option value="priority:desc">Urgent first</option><option value="updatedAt:desc">Recently updated</option></select></label>
+          <label>Priority<select aria-label="Priority" name="priority" value={filters.priority} onChange={filter}><option value="">All priorities</option><option>Normal</option><option>Urgent</option></select></label>
+          <button className="secondary filter-reset" onClick={() => { setFilters({ q: "", status: "", priority: "", service: "", department: "", from: "", to: "", sort: "createdAt", order: "desc" }); setPage(1); }}>Clear filters</button>
+        </div> : <>        <div className="filters">
           <label className="search-field">
             Search requests
             <input
@@ -317,6 +334,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
             Reset
           </button>
         </div>
+</>}
         <LoadingError resource={resource} />
         {departments.error && <Notice error>Department filters could not load. <button className="secondary" onClick={departments.reload}>Retry departments</button></Notice>}
         {!resource.loading && !resource.error && (
@@ -332,32 +350,32 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
                     <th>Status</th>
                     <th>Assigned staff</th>
                     <th>Submitted</th>
-                    <th />
+                    <th><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {resource.data.items.map((row) => (
                     <tr key={row._id}>
-                      <td>
+                      <td data-label="Student / request ID">
                         <strong>
                           {row.student?.name || "Unavailable account"}
                         </strong>
                         <small className="request-id">{row._id}</small>
                       </td>
-                      <td>{row.service}</td>
-                      <td>{row.serviceDetails?.department || "Department unavailable"}</td>
-                      <td>
+                      <td data-label="Service">{row.service}</td>
+                      <td data-label="Department">{row.serviceDetails?.department || "Department unavailable"}</td>
+                      <td data-label="Priority">
                         <Badge value={row.priority} />
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <Badge value={row.status} />
                       </td>
-                      <td>{row.assignedStaff?.name || "Unassigned"}</td>
-                      <td>{dateTime(row.createdAt)}</td>
-                      <td>
+                      <td data-label="Assigned staff">{row.assignedStaff?.name || "Unassigned"}</td>
+                      <td data-label="Submitted">{dateTime(row.createdAt)}</td>
+                      <td data-label="Actions">
                         <button
                           className="table-button"
-                          onClick={() => setParams({ request: row._id })}
+                          onClick={() => { const next = new URLSearchParams(params); next.set("request", row._id); setParams(next); }}
                         >
                           Review
                         </button>

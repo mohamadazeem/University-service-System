@@ -19,8 +19,8 @@ export default function Profile() {
           <dt>Role</dt>
           <dd>{user.role}</dd>
           {user.role === "staff" && <><dt>Service access</dt><dd>All university departments</dd><dt>Staff ID</dt><dd>{user.staffId || "Not provided (existing account)"}</dd><dt>Approval</dt><dd>{user.approvalStatus}</dd></>}
-          <dt>Student ID</dt>
-          <dd>{user.studentId || "Not provided"}</dd>
+          {user.role !== "staff" && <><dt>Student ID</dt>
+          <dd>{user.studentId || "Not provided"}</dd></>}
           <dt>Phone</dt>
           <dd>{user.phone || "Not provided"}</dd>
         </dl>

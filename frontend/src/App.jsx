@@ -20,6 +20,7 @@ import Support from "./pages/Support";
 import Notifications from "./pages/Notifications";
 import StaffRegister from "./pages/StaffRegister";
 import StaffDashboard from "./pages/StaffDashboard";
+import StaffLayout from "./pages/StaffLayout";
 import StaffApprovals from "./admin/StaffApprovals";
 export default function App() {
   return (
@@ -35,7 +36,12 @@ export default function App() {
           <Route path="/staff/login" element={<Login />} />
           <Route path="/staff/register" element={<StaffRegister />} />
           <Route element={<ProtectedRoute roles={["staff"]} />}>
-            <Route path="/staff" element={<StaffDashboard />} />
+            <Route path="/staff" element={<StaffLayout />}>
+              <Route index element={<StaffDashboard />} />
+              <Route path="requests" element={<StaffDashboard />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="notifications" element={<Notifications />} />
+            </Route>
           </Route>
           <Route path="/services" element={<Services />} />
           <Route element={<ProtectedRoute />}>

@@ -390,14 +390,6 @@ tbody tr:hover {
 .section-space {
   margin-bottom: 24px;
 }
-.staff-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 14px;
-  margin-bottom: 24px;
-}
-.staff-summary .panel { padding: 18px 20px; margin: 0; }
-.staff-summary h2 { margin: 8px 0 0; font-size: 28px; }
 @media (max-width: 1000px) {
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
