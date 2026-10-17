@@ -87,6 +87,18 @@ Department labels are Registry, Student Services and Library and can be edited i
 
 ### Run
 
+Recommended: double-click `Start-University-System.cmd`, or run this from the repository root:
+
+```powershell
+npm.cmd start
+```
+
+This starts the API first, waits for MongoDB to connect, then starts the website at `http://localhost:5173`. It automatically uses the backend's configured port for the frontend proxy. Keep the terminal open while using the app; Ctrl+C stops both servers. After restarting your computer or closing the terminal, run the launcher again before reopening the website. A browser bookmark alone does not start these local servers. If dependencies are missing, run `npm.cmd run setup` once.
+
+The frontend uses a fixed port and reports a conflict instead of silently changing the website address. The launcher uses `/api` for local development. The frontend preview also proxies `/api` to `API_PROXY_TARGET`; deployed hosting still requires the API configuration described above.
+
+Alternatively, start each server separately:
+
 Backend terminal:
 
 ```powershell
@@ -101,7 +113,7 @@ cd frontend
 npm.cmd run dev
 ```
 
-Open `http://localhost:5173`. For a frontend production build, run `npm.cmd run build`; `npm.cmd run preview` requires a configured production API URL or reverse proxy because Vite's development proxy is not a production server.
+Open `http://localhost:5173`. For a frontend production build, run `npm.cmd run build`; `npm.cmd run preview` uses the configured API proxy and still requires the backend to be running.
 
 ### Backend startup or login fails
 

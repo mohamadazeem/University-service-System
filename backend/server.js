@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: require("node:path").join(__dirname, ".env") });
 const connectDB = require("./config/db");
 const startupError = require("./utils/startupError");
 async function start() {

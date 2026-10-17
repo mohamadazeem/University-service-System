@@ -1,0 +1,9 @@
+{
+  "name": "university-service-system",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/start.cjs",
+    "dev": "node scripts/start.cjs",
+    "setup": "npm --prefix backend ci && npm --prefix frontend ci"
+  }
+}

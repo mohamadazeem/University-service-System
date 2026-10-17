@@ -26,5 +26,8 @@ export const errorMessage = (error) =>
   error.response?.data?.message ||
   (error.code === "ECONNABORTED"
     ? "The server took too long to respond. Try again."
+    : !error.response || [502, 503, 504].includes(error.response.status) ||
+        (error.response.status === 500 && !error.response.data?.message)
+    ? "The application server is unavailable. If running locally, start the app with npm.cmd start in the project folder, wait for MongoDB to connect, then retry."
     : "Cannot reach the server. Check your connection and try again.");
 export default api;
