@@ -223,7 +223,7 @@ export default function AdminRequests({ staffMode = false, onUpdated }) {
           {!staffMode && <p className="eyebrow">STUDENT SUPPORT</p>}
           {staffMode ? <h2>Service requests</h2> : <h1>Service requests</h1>}
           <p className="muted">
-            {staffMode ? "Review and process service requests across all university departments." : "Review requests, coordinate staff and track progress."}
+            {staffMode ? "Review and process requests assigned to you by an administrator." : "Review requests, coordinate staff and track progress."}
           </p>
         </div>
         <button className="secondary" onClick={resource.reload}>

@@ -3,10 +3,11 @@ const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const requests = require("../controllers/adminRequestController");
 const Request = require("../models/Request");
+const requestScope = require("../utils/requestScope");
 const { statuses } = require("../utils/requestStatus");
 router.use(protect, authorize("staff"));
 router.get("/dashboard", async (req, res) => {
-  const counts = await Promise.all(statuses.map((status) => Request.countDocuments({ status })));
+  const counts = await Promise.all(statuses.map((status) => Request.countDocuments({ ...requestScope(req.user), status })));
   res.json({ total: counts.reduce((a, b) => a + b, 0), counts: Object.fromEntries(statuses.map((status, i) => [status, counts[i]])) });
 });
 router.get("/requests", requests.listRequests);

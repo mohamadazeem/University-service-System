@@ -2,6 +2,7 @@ const Request = require("../models/Request");
 const User = require("../models/user");
 const Service = require("../models/service");
 const v = require("../utils/validation");
+const requestScope = require("../utils/requestScope");
 const { statuses, transitions } = require("../utils/requestStatus");
 const populate = [
   { path: "student", select: "name email studentId phone" },
@@ -16,7 +17,7 @@ const listRequests = async (req, res) => {
     "status",
     "priority",
   ]);
-  const filter = {};
+  const filter = requestScope(req.user);
   if (req.query.department) {
     const department = v.text(req.query.department, "Department", 120);
     const services = await Service.find({ department }).select("_id").lean();
@@ -81,9 +82,10 @@ const listRequests = async (req, res) => {
 };
 const getRequest = async (req, res) => {
   const recordId = v.id(req.params.id);
-  const request = await Request.findById(recordId).populate(
-    populate,
-  );
+  const query = req.user.role === "staff"
+    ? Request.findOne({ _id: recordId, ...requestScope(req.user) })
+    : Request.findById(recordId);
+  const request = await query.populate(populate);
   if (!request) v.fail("Request not found", 404);
   res.json({ request, allowedStatuses: transitions[request.status] });
 };
@@ -96,7 +98,9 @@ const updateRequest = async (req, res) => {
     "staffComment",
   ]);
   const recordId = v.id(req.params.id);
-  const request = await Request.findById(recordId);
+  const request = await (req.user.role === "staff"
+    ? Request.findOne({ _id: recordId, ...requestScope(req.user) })
+    : Request.findById(recordId));
   if (!request) v.fail("Request not found", 404);
   const values = {};
   if (req.body.expectedUpdatedAt !== undefined) {
@@ -142,7 +146,7 @@ const updateRequest = async (req, res) => {
   if (!Object.keys(values).length) v.fail("No changes provided");
   // The condition prevents overwriting a concurrent status update.
   const updated = await Request.findOneAndUpdate(
-    { _id: recordId, status: request.status, updatedAt: request.updatedAt },
+    { _id: recordId, ...requestScope(req.user), status: request.status, updatedAt: request.updatedAt },
     { $set: values, $push: { notificationEvents: require("../utils/notificationEvent").event(request.student, `Your service request was updated${values.status ? ": " + values.status : ""}.`) } },
     { returnDocument: "after", runValidators: true },
   ).populate(populate);

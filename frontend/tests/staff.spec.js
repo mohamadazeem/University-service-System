@@ -52,7 +52,7 @@ const signIn = async (page, address, admin = false) => {
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
 };
 
-test("four-field staff registration → approval → all-department processing → rejection", async ({ page, browser }) => {
+test("four-field staff registration → approval → admin assignment and staff processing → rejection", async ({ page, browser }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/staff");
@@ -98,6 +98,25 @@ test("four-field staff registration → approval → all-department processing �
     await adminPage.getByLabel("Approval status", { exact: true }).selectOption("approved");
     await expect(staffRow).toHaveCount(1);
     await adminPage.screenshot({ path: "test-results/staff-approvals-desktop.png", fullPage: true });
+    const approvedStaff = await User.findOne({ email });
+    await adminPage.goto("/admin/requests");
+    await adminPage.getByLabel("Search requests").fill(prefix);
+    await expect(adminPage.locator("tbody tr")).toHaveCount(2);
+    for (const requestId of owned.requests.slice(0, 2)) {
+      await adminPage.getByRole("row").filter({ hasText: String(requestId) }).getByRole("button", { name: "Review", exact: true }).click();
+      await adminPage.getByLabel("Assigned staff").selectOption(String(approvedStaff._id));
+      await adminPage.getByRole("button", { name: "Review changes", exact: true }).click();
+      await adminPage.getByRole("button", { name: "Confirm changes", exact: true }).click();
+      await expect(adminPage.getByRole("dialog")).toHaveCount(0);
+    }
+    // A new unassigned request remains visible to Admin, but never to staff.
+    const unassigned = await Request.create({ student: owned.users[1], studentId: prefix, service: department, serviceRef: owned.services[0], description: "Unassigned private request" });
+    owned.requests.push(unassigned._id);
+    await adminPage.getByRole("button", { name: /Refresh$/ }).click();
+    await expect(adminPage.locator("tbody tr")).toHaveCount(3);
+    await adminPage.goto("/admin/staff-approvals");
+    await adminPage.getByLabel("Search staff").fill(prefix);
+    await adminPage.getByLabel("Approval status", { exact: true }).selectOption("approved");
     await signIn(page, email);
     await expect(page).toHaveURL(/\/staff$/);
     await expect(page.getByRole("heading", { name: "Staff Dashboard", exact: true })).toBeVisible();
@@ -105,10 +124,10 @@ test("four-field staff registration → approval → all-department processing �
       const response = await fetch("/api/staff/dashboard", { headers: { Authorization: "Bearer " + localStorage.getItem("token") } });
       return response.json();
     });
-    expect(statistics.total).toBe(await Request.countDocuments({ status: { $in: ["Pending", "Processing", "Approved", "Rejected", "Completed"] } }));
+    expect(statistics.total).toBe(await Request.countDocuments({ assignedStaff: approvedStaff._id, status: { $in: ["Pending", "Processing", "Approved", "Rejected", "Completed"] } }));
     await expect(page.locator(".staff-metric").first().locator("strong")).toHaveText(String(statistics.total));
     for (const [index, status] of [[1, "Pending"], [2, "Processing"], [3, "Completed"]]) {
-      expect(statistics.counts[status]).toBe(await Request.countDocuments({ status }));
+      expect(statistics.counts[status]).toBe(await Request.countDocuments({ assignedStaff: approvedStaff._id, status }));
       await expect(page.locator(".staff-metric").nth(index).locator("strong")).toHaveText(String(statistics.counts[status]));
     }
     await page.getByRole("button", { name: "Collapse sidebar" }).click();
@@ -145,13 +164,20 @@ test("four-field staff registration → approval → all-department processing �
     await expect(page.locator(".staff-metric")).toHaveCount(4);
     await page.getByLabel("Search requests").fill(prefix);
     await expect(page.locator("tbody tr")).toHaveCount(2);
+    const forbidden = await page.evaluate(async id => {
+      const headers = { Authorization: "Bearer " + localStorage.getItem("token"), "Content-Type": "application/json" };
+      const read = await fetch("/api/staff/requests/" + id, { headers });
+      const write = await fetch("/api/staff/requests/" + id, { method: "PATCH", headers, body: JSON.stringify({ staffComment: "Forbidden edit" }) });
+      return [read.status, write.status];
+    }, String(unassigned._id));
+    expect(forbidden).toEqual([404, 404]);
     await expect(page.locator("tbody")).toContainText(department);
     await expect(page.locator("tbody")).toContainText(otherDepartment);
     await page.getByLabel("Sort by", { exact: true }).selectOption("createdAt:asc");
     await expect(page.locator("tbody tr").first()).toContainText(department);
     await page.getByLabel("Sort by", { exact: true }).selectOption("createdAt:desc");
     await expect(page.locator("tbody tr").first()).toContainText(otherDepartment);
-    const extraRequests = await Request.insertMany(Array.from({ length: 10 }, () => ({ student: owned.users[1], studentId: prefix, service: department, serviceRef: owned.services[0], description: "Pagination verification", priority: "Normal" })));
+    const extraRequests = await Request.insertMany(Array.from({ length: 10 }, () => ({ student: owned.users[1], studentId: prefix, service: department, serviceRef: owned.services[0], description: "Pagination verification", assignedStaff: approvedStaff._id, priority: "Normal" })));
     owned.requests.push(...extraRequests.map(request => request._id));
     await page.getByRole("button", { name: /Refresh$/, exact: false }).last().click();
     await expect(page.locator("tbody tr")).toHaveCount(10);

@@ -59,6 +59,7 @@ const requestSchema = new mongoose.Schema(
 );
 
 requestSchema.index({ status: 1, createdAt: -1 });
+requestSchema.index({ assignedStaff: 1, status: 1, createdAt: -1 });
 requestSchema.index({ student: 1, createdAt: -1 });
 requestSchema.index({ serviceRef: 1 });
 // Informational join only; keep the stored reference and historical name intact.
