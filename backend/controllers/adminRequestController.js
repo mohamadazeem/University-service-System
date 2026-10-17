@@ -14,7 +14,7 @@ const listRequests = async (req, res) => {
     "status",
     "priority",
   ]);
-  const filter = {};
+  const filter = { ...req.requestScope };
   if (req.query.status)
     filter.status = v.choice(req.query.status, statuses, "status");
   if (req.query.priority)
@@ -73,23 +73,34 @@ const listRequests = async (req, res) => {
   res.json({ items, total, page: p.page, pages: Math.ceil(total / p.limit) });
 };
 const getRequest = async (req, res) => {
-  const request = await Request.findById(v.id(req.params.id)).populate(
+  const recordId = v.id(req.params.id);
+  const query = req.requestScope ? Request.findOne({ _id: recordId, ...req.requestScope }) : Request.findById(recordId);
+  const request = await query.populate(
     populate,
   );
   if (!request) v.fail("Request not found", 404);
   res.json({ request, allowedStatuses: transitions[request.status] });
 };
 const updateRequest = async (req, res) => {
-  v.body(req.body, [
+  v.body(req.body, req.user.role === "staff" ? ["status", "expectedStatus", "expectedUpdatedAt", "staffComment"] : [
     "status",
     "expectedStatus",
+    "expectedUpdatedAt",
     "assignedStaff",
     "staffComment",
   ]);
   const recordId = v.id(req.params.id);
-  const request = await Request.findById(recordId);
+  const request = req.requestScope
+    ? await Request.findOne({ _id: recordId, ...req.requestScope })
+    : await Request.findById(recordId);
   if (!request) v.fail("Request not found", 404);
   const values = {};
+  if (req.body.expectedUpdatedAt !== undefined) {
+    const timestamp = v.text(req.body.expectedUpdatedAt, "Last updated timestamp", 40);
+    if (Number.isNaN(Date.parse(timestamp))) v.fail("Invalid last updated timestamp");
+    if (new Date(timestamp).getTime() !== request.updatedAt?.getTime())
+      v.fail("This request changed. Reload its details.", 409);
+  }
   if (req.body.status !== undefined) {
     values.status = v.choice(req.body.status, statuses, "status");
     v.choice(req.body.expectedStatus, statuses, "expected status");
@@ -111,6 +122,7 @@ const updateRequest = async (req, res) => {
           _id: values.assignedStaff,
           role: "staff",
           active: { $ne: false },
+          approvalStatus: "approved",
         }))
       )
         v.fail("Choose an active staff member");
@@ -126,7 +138,7 @@ const updateRequest = async (req, res) => {
   if (!Object.keys(values).length) v.fail("No changes provided");
   // The condition prevents overwriting a concurrent status update.
   const updated = await Request.findOneAndUpdate(
-    { _id: recordId, status: request.status, updatedAt: request.updatedAt },
+    { _id: recordId, status: request.status, updatedAt: request.updatedAt, ...req.requestScope },
     { $set: values, $push: { notificationEvents: require("../utils/notificationEvent").event(request.student, `Your service request was updated${values.status ? ": " + values.status : ""}.`) } },
     { returnDocument: "after", runValidators: true },
   ).populate(populate);

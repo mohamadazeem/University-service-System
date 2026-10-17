@@ -15,12 +15,12 @@
 }
 .portal-header .auth-brand { margin: 0; font-size: 16px; }
 .portal-home { color: var(--muted); font-size: 13px; }
-.portal-content { width: min(860px, 100%); margin: auto; padding: 38px 28px 36px; text-align: center; }
+.portal-content { width: min(1140px, 100%); margin: auto; padding: 38px 28px 36px; text-align: center; }
 .portal-content > .eyebrow { color: var(--link); font-size: 11px; letter-spacing: 2.4px; margin-bottom: 18px; }
 .portal-content h1 { font-size: clamp(32px, 4.5vw, 48px); line-height: 1.18; letter-spacing: -1.6px; }
 .portal-content h1 span { color: var(--link); }
 .portal-subtitle { color: var(--muted); font-size: 16px; margin: 18px 0 36px; }
-.portal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; text-align: left; }
+.portal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; text-align: left; }
 .portal-option { display: flex; flex-direction: column; padding: 30px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: 0 8px 32px #16336106; transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
 .portal-option:hover, .portal-option:focus-within { transform: translateY(-4px); border-color: #8ba9dc; box-shadow: 0 16px 36px #16336112; }
 .portal-icon { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border: 1px solid var(--border); border-radius: 16px; background: var(--tint); color: #2c5cad; margin-bottom: 24px; }
@@ -30,6 +30,7 @@
 .portal-option h2 { color: var(--heading); font-size: 24px; margin-bottom: 12px; }
 .portal-description { color: var(--muted); line-height: 1.7; margin-bottom: 28px; }
 .portal-action { width: 100%; justify-content: space-between; margin-top: auto; padding: 13px 18px; border-radius: 9px; }
+.portal-option > a + a { margin-top: 14px; font-size: 13px; }
 .portal-option-admin .portal-action { background: #203f72; border-color: #203f72; }
 .portal-option-admin .portal-action:hover { background: #162f58; }
 .portal-register { margin: 28px 0 0; color: var(--muted); font-size: 13px; }
@@ -52,7 +53,7 @@
 .portal-login-card .auth-footer { margin-bottom: 0; color: var(--muted); }
 .login-spinner { width: 15px; height: 15px; border: 2px solid #ffffff66; border-top-color: var(--surface); border-radius: 50%; animation: login-spin 800ms linear infinite; }
 @keyframes login-spin { to { transform: rotate(360deg); } }
-@media (max-width: 600px) {
+@media (max-width: 800px) {
   .portal-header { padding: 20px; flex-wrap: wrap; }
   .portal-header .auth-brand { font-size: 14px; }
   .portal-content { padding: 32px 20px; }

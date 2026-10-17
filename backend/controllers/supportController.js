@@ -48,6 +48,7 @@ exports.slots = async (req, res) => {
   }).select("reservedSlot");
   const staff = await User.find({
     role: "staff",
+    approvalStatus: "approved",
     active: {
       $ne: false
     }
@@ -81,6 +82,7 @@ exports.createSlot = async (req, res) => {
   if (!(await User.exists({
     _id: staff,
     role: "staff",
+      approvalStatus: "approved",
     active: {
       $ne: false
     }
@@ -119,6 +121,7 @@ exports.book = async (req, res) => {
   if (!slot || !(await User.exists({
     _id: slot.staff,
     role: "staff",
+      approvalStatus: "approved",
     active: {
       $ne: false
     }

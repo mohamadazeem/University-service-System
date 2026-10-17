@@ -43,7 +43,7 @@ const getUser = async (req, res) => {
   res.json({ user, requestCount });
 };
 const staffOptions = async (req, res) => {
-  const staff = await User.find({ role: "staff", active: { $ne: false } })
+  const staff = await User.find({ role: "staff", active: { $ne: false }, approvalStatus: "approved" })
     .select("name email")
     .sort({ name: 1 });
   res.json({ staff });
@@ -125,7 +125,7 @@ const changeRole = async (req, res) => {
     v.fail("Reactivate the account before promoting it", 409);
   const updated = await User.findOneAndUpdate(
     { _id: recordId, role: user.role, active: { $ne: false } },
-    { $set: { role } },
+    { $set: { role, ...(role === "staff" && user.role !== "staff" ? { approvalStatus: "pending" } : {}) } },
     { returnDocument: "after", runValidators: true },
   );
   if (!updated) v.fail("Account changed or inactive. Reload its details.", 409);

@@ -6,7 +6,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import PortalIcon from "../components/PortalIcon";
 import "../styles/login.css";
 
-export default function Login({ adminOnly = false }) {
+export default function Login({ adminOnly = false, staffOnly = false }) {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,8 +24,8 @@ export default function Login({ adminOnly = false }) {
     }
     setBusy(true);
     try {
-      await login(email.trim(), password, adminOnly ? "admin" : "student");
-      navigate(adminOnly ? "/admin" : "/dashboard", { replace: true });
+      await login(email.trim(), password, adminOnly ? "admin" : staffOnly ? "staff" : "student");
+      navigate(adminOnly ? "/admin" : staffOnly ? "/staff" : "/dashboard", { replace: true });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -41,14 +41,14 @@ export default function Login({ adminOnly = false }) {
       <section className="auth-card portal-login-card" aria-labelledby="login-title">
         <Link className="back-to-portals" to="/login"><span aria-hidden="true">←</span> Back to portal selection</Link>
         <span className="portal-icon"><PortalIcon admin={adminOnly} /></span>
-        <p className="eyebrow">{adminOnly ? "ADMIN PORTAL" : "STUDENT PORTAL"}</p>
-        <h1 id="login-title">{adminOnly ? "Administrator sign in" : "Student sign in"}</h1>
-        <p className="muted">{adminOnly ? "Manage your university with confidence." : "Your next step starts here. Welcome back."}</p>
+        <p className="eyebrow">{adminOnly ? "ADMIN PORTAL" : staffOnly ? "STAFF PORTAL" : "STUDENT PORTAL"}</p>
+        <h1 id="login-title">{adminOnly ? "Administrator sign in" : staffOnly ? "Staff sign in" : "Student sign in"}</h1>
+        <p className="muted">{adminOnly ? "Manage your university with confidence." : staffOnly ? "Sign in to review your department's service requests." : "Your next step starts here. Welcome back."}</p>
         {location.state?.sessionRequired && <p className="notice" role="status">Please sign in to continue. Your session may have expired.</p>}
         <form onSubmit={submit} aria-busy={busy}>
           <fieldset disabled={busy}>
             <label htmlFor="login-email">{adminOnly ? "Administrator email" : "Email address"}</label>
-            <input id="login-email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" maxLength={254} placeholder={adminOnly ? "admin@university.edu" : "student@university.edu"} required />
+            <input id="login-email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" maxLength={254} placeholder={adminOnly ? "admin@university.edu" : staffOnly ? "staff@university.edu" : "student@university.edu"} required />
             <label htmlFor="login-password">Password</label>
             <div className="password-field">
               <input id="login-password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={200} required />
@@ -58,7 +58,7 @@ export default function Login({ adminOnly = false }) {
             <button className="full-width portal-submit" type="submit">{busy ? <><span className="login-spinner" aria-hidden="true" /> Signing in…</> : adminOnly ? "Admin Sign In" : "Sign In"}</button>
           </fieldset>
         </form>
-        <p className="auth-footer">{adminOnly ? "Access is restricted to authorized administrators." : <>New student? <Link to="/register">Create an account</Link></>}</p>
+        <p className="auth-footer">{adminOnly ? "Access is restricted to authorized administrators." : staffOnly ? <>Staff and lecturers need administrator approval. <Link to="/staff/register">Register as staff</Link></> : <>New student? <Link to="/register">Create an account</Link></>}</p>
       </section>
       <footer className="portal-footer"><span>University Service System</span><span>Here to support your university journey.</span></footer>
     </main>

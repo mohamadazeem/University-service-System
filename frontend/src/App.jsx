@@ -18,6 +18,9 @@ import AdminUsers from "./admin/AdminUsers";
 import AdminServices from "./admin/AdminServices";
 import Support from "./pages/Support";
 import Notifications from "./pages/Notifications";
+import StaffRegister from "./pages/StaffRegister";
+import StaffDashboard from "./pages/StaffDashboard";
+import StaffApprovals from "./admin/StaffApprovals";
 export default function App() {
   return (
     <BrowserRouter>
@@ -29,6 +32,11 @@ export default function App() {
           <Route path="/student/login" element={<Login key="student" />} />
           <Route path="/admin/login" element={<Login key="admin" adminOnly />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/staff/login" element={<Login key="staff" staffOnly />} />
+          <Route path="/staff/register" element={<StaffRegister />} />
+          <Route element={<ProtectedRoute roles={["staff"]} />}>
+            <Route path="/staff" element={<StaffDashboard />} />
+          </Route>
           <Route path="/services" element={<Services />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/profile" element={<Profile />} />
@@ -46,6 +54,7 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               <Route path="requests" element={<AdminRequests />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="staff-approvals" element={<StaffApprovals />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="appointments" element={<Support key="admin-appointments" kind="appointments" admin />} />
               <Route path="complaints" element={<Support key="admin-complaints" kind="complaints" admin />} />

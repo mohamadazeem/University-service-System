@@ -17,6 +17,7 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/requests", require("./routes/RequestRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/services", require("./routes/serviceRoutes"));
+app.use("/api/staff", require("./routes/staffRoutes"));
 app.use("/api", require("./routes/supportRoutes"));
 app.get("/api/protected", protect, (req, res) =>
   res.json({ message: "Authenticated", user: req.user }),

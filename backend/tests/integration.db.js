@@ -108,10 +108,6 @@ test(
       );
       assert.equal(staff.status, 201);
       owned.users.push(staff.user._id);
-      const staffLogin = await call("/auth/login", "POST", {
-        email: staff.user.email,
-        password,
-      });
       assert.equal(
         (
           await call(
@@ -136,6 +132,13 @@ test(
       assert.equal(created.status, 201);
       owned.services.push(created.service._id);
       const serviceId = created.service._id;
+      const staffDetails = await call("/admin/staff-registrations/" + staff.user._id, "GET", undefined, adminToken);
+      assert.equal((await call("/admin/staff-registrations/" + staff.user._id, "PATCH", {
+        approvalStatus: "approved", expectedStatus: "pending",
+        expectedUpdatedAt: staffDetails.user.updatedAt, department: "Integration testing",
+      }, adminToken)).status, 200);
+      const staffLogin = await call("/auth/login", "POST", { email: staff.user.email, password });
+      assert.equal(staffLogin.status, 200);
       const duplicate = await call(
         "/admin/services",
         "POST",

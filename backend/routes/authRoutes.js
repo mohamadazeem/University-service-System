@@ -1,8 +1,10 @@
 const router = require("express").Router();
-const { registerUser, loginUser } = require("../controllers/authController");
+const { registerUser, registerStaff, loginUser } = require("../controllers/authController");
 const protect = require("../middleware/authMiddleware");
 const limiter = require("../middleware/loginLimiter");
 router.post("/register", limiter, registerUser);
+router.post("/staff/register", limiter, registerStaff);
+router.get("/departments", async (req, res) => res.json({ departments: await require("../utils/departments").list() }));
 router.post("/login", limiter, loginUser);
 router.get("/me", protect, (req, res) => res.json({ user: req.user }));
 module.exports = router;

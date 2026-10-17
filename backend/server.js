@@ -7,6 +7,7 @@ async function start() {
   await connectDB();
   // Do not accept bookings before the database uniqueness guards are ready.
   await Promise.all([
+    require("./models/user").init(),
     require("./models/Appointment").init(),
     require("./models/AppointmentSlot").init(),
     require("./models/Notification").init(),

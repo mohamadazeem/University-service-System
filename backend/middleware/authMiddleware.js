@@ -20,7 +20,7 @@ module.exports = async (req, res, next) => {
   try {
     // Current database permissions take precedence over roles in old JWTs.
     const user = await User.findById(decoded.id).select(
-      "name email role active studentId phone",
+      "name email role active studentId phone department approvalStatus staffId",
     );
     if (!user || user.active === false)
       return res
@@ -28,6 +28,8 @@ module.exports = async (req, res, next) => {
         .json({
           message: "This account is unavailable. Please sign in again.",
         });
+    const approvalError = require("../utils/staffAccess").message(user);
+    if (approvalError) return res.status(401).json({ message: approvalError });
     req.user = {
       id: user._id.toString(),
       name: user.name,
@@ -35,6 +37,9 @@ module.exports = async (req, res, next) => {
       role: user.role,
       studentId: user.studentId,
       phone: user.phone,
+      department: user.department,
+      approvalStatus: user.approvalStatus,
+      staffId: user.staffId,
     };
     next();
   } catch (error) {

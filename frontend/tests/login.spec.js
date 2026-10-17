@@ -27,7 +27,7 @@ test.beforeAll(async () => {
   await requireBackend("./config/db")();
   const admin = await User.create({ name: "Portal Test Administrator", email: adminEmail, password: await bcrypt.hash(password, 12), role: "admin" });
   adminId = admin._id;
-  const staff = await User.create({ name: prefix + " Staff", email: prefix + "-staff@example.test", password: await bcrypt.hash(password, 12), role: "staff" });
+  const staff = await User.create({ name: prefix + " Staff", email: prefix + "-staff@example.test", password: await bcrypt.hash(password, 12), role: "staff", approvalStatus: "approved", department: "Browser testing" });
   staffId = staff._id;
   const service = await Service.create({ name: prefix, nameKey: prefix, description: "Temporary portal browser test service", department: "Browser testing" });
   serviceId = service._id;
@@ -164,7 +164,7 @@ test("network and server errors leave the login form usable", async ({ page }) =
   await page.goto("/student/login");
   await page.route("**/api/auth/login", (route) => route.abort("failed"));
   await signIn(page, email);
-  await expect(page.getByRole("alert")).toContainText("Cannot reach the server");
+  await expect(page.getByRole("alert")).toContainText("The application server is unavailable");
   await expect(page.getByRole("button", { name: "Sign In", exact: true })).toBeEnabled();
   await page.unroute("**/api/auth/login");
   await page.route("**/api/auth/login", (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "The service is temporarily unavailable. Please try again." }) }));

@@ -7,7 +7,7 @@ import { Badge, Notice, Pagination, LoadingError } from "./AdminUI";
 import { listUrl, dateTime } from "./adminUtils";
 const statuses = ["Pending", "Processing", "Approved", "Rejected", "Completed"];
 
-function RequestEditor({ data, staff, onClose, onSaved }) {
+function RequestEditor({ data, staff, onClose, onSaved, staffMode }) {
   const request = data.request;
   const [form, setForm] = useState({
     status: request.status,
@@ -23,10 +23,12 @@ function RequestEditor({ data, staff, onClose, onSaved }) {
     setBusy(true);
     setError("");
     try {
-      const response = await api.patch(`/admin/requests/${request._id}`, {
-        ...form,
-        assignedStaff: form.assignedStaff || null,
+      const response = await api.patch(`/${staffMode ? "staff" : "admin"}/requests/${request._id}`, {
+        status: form.status,
+        staffComment: form.staffComment,
+        ...(!staffMode && { assignedStaff: form.assignedStaff || null }),
         expectedStatus: request.status,
+        expectedUpdatedAt: request.updatedAt,
       });
       onSaved(response.data.message);
     } catch (err) {
@@ -82,7 +84,7 @@ function RequestEditor({ data, staff, onClose, onSaved }) {
             </strong>
           </p>
           <p>
-            Assignment and staff comments will be saved. Completed and rejected
+            {staffMode ? "Staff comments" : "Assignment and staff comments"} will be saved. Completed and rejected
             requests cannot change status.
           </p>
           <footer className="modal-actions">
@@ -114,7 +116,7 @@ function RequestEditor({ data, staff, onClose, onSaved }) {
                 ))}
               </select>
             </label>
-            <label>
+            {!staffMode && <label>
               Assigned staff
               <select
                 name="assignedStaff"
@@ -136,7 +138,7 @@ function RequestEditor({ data, staff, onClose, onSaved }) {
                   </option>
                 ))}
               </select>
-            </label>
+            </label>}
             <label>
               Staff comments
               <textarea
@@ -159,26 +161,27 @@ function RequestEditor({ data, staff, onClose, onSaved }) {
     </Modal>
   );
 }
-function RequestDialog({ id, onClose, onSaved }) {
-  const resource = useResource(`/admin/requests/${id}`);
-  const staff = useResource("/admin/staff");
-  if (resource.loading || resource.error || staff.loading || staff.error)
+function RequestDialog({ id, onClose, onSaved, staffMode }) {
+  const resource = useResource(`/${staffMode ? "staff" : "admin"}/requests/${id}`);
+  const staff = useResource(staffMode ? null : "/admin/staff");
+  if (resource.loading || resource.error || (!staffMode && (staff.loading || staff.error)))
     return (
       <Modal title="Request details" onClose={onClose}>
         <LoadingError resource={resource} />
-        <LoadingError resource={staff} />
+        {!staffMode && <LoadingError resource={staff} />}
       </Modal>
     );
   return (
     <RequestEditor
       data={resource.data}
-      staff={staff.data.staff}
+      staff={staffMode ? [] : staff.data.staff}
+      staffMode={staffMode}
       onClose={onClose}
       onSaved={onSaved}
     />
   );
 }
-export default function AdminRequests() {
+export default function AdminRequests({ staffMode = false, onUpdated }) {
   const [params, setParams] = useSearchParams();
   const selectedId = params.get("request");
   const [filters, setFilters] = useState({
@@ -193,7 +196,7 @@ export default function AdminRequests() {
   });
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState("");
-  const resource = useResource(listUrl("/admin/requests", filters, page));
+  const resource = useResource(listUrl(`/${staffMode ? "staff" : "admin"}/requests`, filters, page));
   const filter = (event) => {
     setFilters({ ...filters, [event.target.name]: event.target.value });
     setPage(1);
@@ -360,12 +363,14 @@ export default function AdminRequests() {
       {selectedId && (
         <RequestDialog
           id={selectedId}
+          staffMode={staffMode}
           onClose={close}
           onSaved={(message) => {
             setNotice(message);
             close();
             setPage(1);
             resource.reload();
+            onUpdated?.();
           }}
         />
       )}
