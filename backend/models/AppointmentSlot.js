@@ -9,6 +9,7 @@ const schema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  location: { type: String, trim: true, maxlength: 200 },
   active: {
     type: Boolean,
     default: true

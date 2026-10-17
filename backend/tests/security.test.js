@@ -357,7 +357,7 @@ test("notification read operations enforce ownership and never accept a client u
 test("support reviews reject terminal transitions and require complaint responses", async (t) => {
   mockAccounts(t);
   const Complaint = require("../models/Complaint");
-  t.mock.method(Complaint, "findById", async () => ({ _id: recordId, student: studentId, status: "Pending" }));
+  t.mock.method(Complaint, "findOne", async () => ({ _id: recordId, student: studentId, status: "Pending" }));
   assert.equal((await call(`/api/admin/complaints/${recordId}`, { user: adminId, method: "PATCH", data: { status: "Pending", expectedStatus: "Resolved", response: "Reopen" } })).status, 409);
   assert.equal((await call(`/api/admin/complaints/${recordId}`, { user: adminId, method: "PATCH", data: { status: "Resolved", expectedStatus: "Pending" } })).status, 400);
 });

@@ -1,7 +1,7 @@
 import Modal from "../components/Modal";
 export function Badge({ value }) {
   return (
-    <span className={`badge badge-${String(value).toLowerCase()}`}>
+    <span className={`badge badge-${String(value).toLowerCase().replaceAll(" ", "-")}`}>
       {value}
     </span>
   );

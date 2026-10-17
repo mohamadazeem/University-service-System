@@ -21,6 +21,7 @@ import Notifications from "./pages/Notifications";
 import StaffRegister from "./pages/StaffRegister";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffLayout from "./pages/StaffLayout";
+import StaffSupport from "./pages/StaffSupport";
 import StaffApprovals from "./admin/StaffApprovals";
 export default function App() {
   return (
@@ -39,6 +40,8 @@ export default function App() {
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffDashboard />} />
               <Route path="requests" element={<StaffDashboard />} />
+              <Route path="bookings" element={<StaffSupport key="bookings" kind="bookings" />} />
+              <Route path="complaints" element={<StaffSupport key="complaints" kind="complaints" />} />
               <Route path="profile" element={<Profile />} />
               <Route path="notifications" element={<Notifications />} />
             </Route>

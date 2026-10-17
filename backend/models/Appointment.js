@@ -33,7 +33,7 @@ const appointmentSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Completed"],
+      enum: ["Pending", "Approved", "Rejected", "Completed", "Cancelled"],
       default: "Pending",
     },
   },
@@ -42,4 +42,5 @@ const appointmentSchema = new mongoose.Schema(
   },
 );
 
+appointmentSchema.index({ staff: 1, status: 1, date: 1 });
 module.exports = mongoose.model("Appointment", appointmentSchema);

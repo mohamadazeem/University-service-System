@@ -12,4 +12,12 @@ router.get("/dashboard", async (req, res) => {
 router.get("/requests", requests.listRequests);
 router.get("/requests/:id", requests.getRequest);
 router.patch("/requests/:id", requests.updateRequest);
+const support = require("../controllers/supportController");
+router.get("/support-overview", support.overview);
+router.get("/bookings", support.list(support.Appointment));
+router.get("/bookings/:id", support.details(support.Appointment));
+router.patch("/bookings/:id", support.review(support.Appointment));
+router.get("/complaints", support.list(support.Complaint));
+router.get("/complaints/:id", support.details(support.Complaint));
+router.patch("/complaints/:id", support.review(support.Complaint));
 module.exports = router;

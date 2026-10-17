@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { GraduationCap, LayoutDashboard, Files, Clock3, LoaderCircle, CircleCheck, UserRound, LogOut, Bell, PanelLeftClose, PanelLeftOpen, Menu, X, ChevronDown } from "lucide-react";
+import { CalendarDays, MessageSquare, GraduationCap, LayoutDashboard, Files, Clock3, LoaderCircle, CircleCheck, UserRound, LogOut, Bell, PanelLeftClose, PanelLeftOpen, Menu, X, ChevronDown } from "lucide-react";
 import useAuth from "../auth/useAuth";
 import Modal from "../components/Modal";
 import "../styles/staff.css";
@@ -10,6 +10,8 @@ const links = [
   ["Pending Requests", "/staff/requests?status=Pending", Clock3],
   ["In Progress", "/staff/requests?status=Processing", LoaderCircle],
   ["Completed Requests", "/staff/requests?status=Completed", CircleCheck],
+  ["Bookings", "/staff/bookings", CalendarDays],
+  ["Complaints", "/staff/complaints", MessageSquare],
 ];
 export default function StaffLayout() {
   const { user, logout } = useAuth();
@@ -25,13 +27,13 @@ export default function StaffLayout() {
     return () => document.removeEventListener("keydown", close);
   }, [accountOpen]);
   const initials = user.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("");
-  const title = location.pathname.endsWith("profile") ? "Profile / Account" : location.pathname.endsWith("notifications") ? "Notifications" : location.pathname.endsWith("requests") ? "Service Requests" : "Staff Dashboard";
+  const title = location.pathname.endsWith("bookings") ? "Booking Management" : location.pathname.endsWith("complaints") ? "Complaint Management" : location.pathname.endsWith("profile") ? "Profile / Account" : location.pathname.endsWith("notifications") ? "Notifications" : location.pathname.endsWith("requests") ? "Service Requests" : "Staff Dashboard";
   const signOut = () => { logout(); navigate("/staff/login"); };
   const navigation = <>
     <Link className="staff-brand" to="/staff" onClick={() => setMobileOpen(false)}><span className="staff-brand-icon"><GraduationCap size={24} /></span><span className="staff-nav-label">University<span>Service System</span></span></Link>
     <p className="staff-nav-caption">STAFF WORKSPACE</p>
     <nav aria-label="Staff navigation">{links.map(([label, to, Icon]) => {
-      const active = location.pathname + (new URLSearchParams(location.search).get("status") ? "?status=" + new URLSearchParams(location.search).get("status") : "") === to || (to === "/staff/requests" && location.pathname === to && !new URLSearchParams(location.search).get("status"));
+      const active = to.includes("?") ? location.pathname + "?status=" + new URLSearchParams(location.search).get("status") === to : location.pathname === to && (to !== "/staff/requests" || !new URLSearchParams(location.search).get("status"));
       return <Link key={to} to={to} title={label} aria-current={active ? "page" : undefined} className={active ? "active" : ""} onClick={() => setMobileOpen(false)}><Icon size={19} /><span className="staff-nav-label">{label}</span></Link>;
     })}</nav>
     <div className="staff-nav-bottom"><NavLink to="/staff/profile" title="Profile / Account" onClick={() => setMobileOpen(false)}><UserRound size={19} /><span className="staff-nav-label">Profile / Account</span></NavLink><button onClick={signOut} title="Logout"><LogOut size={19} /><span className="staff-nav-label">Logout</span></button></div>
