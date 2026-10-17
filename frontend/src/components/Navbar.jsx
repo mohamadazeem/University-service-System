@@ -5,7 +5,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  if (location.pathname.startsWith("/admin") || ["/login", "/student/login", "/staff/login"].includes(location.pathname)) return null;
+  if (location.pathname.startsWith("/admin") || ["/", "/login", "/student/login", "/staff/login"].includes(location.pathname)) return null;
   return (
     <header className="site-header">
       <Link className="site-brand" to="/">

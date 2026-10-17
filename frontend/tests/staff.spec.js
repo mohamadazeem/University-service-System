@@ -45,10 +45,11 @@ test.afterAll(async () => {
   } finally { await mongoose.disconnect(); }
 });
 const signIn = async (page, address, admin = false) => {
-  await page.goto(admin ? "/admin/login" : "/staff/login");
+  await page.goto("/login");
+  await page.getByRole("radio", { name: admin ? "Admin" : "Staff / Lecturer", exact: true }).check();
   await page.locator("#login-email").fill(address);
   await page.locator("#login-password").fill(password);
-  await page.getByRole("button", { name: admin ? "Admin Sign In" : "Sign In", exact: true }).click();
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
 };
 
 test("four-field staff registration → approval → all-department processing → rejection", async ({ page, browser }) => {
@@ -56,7 +57,8 @@ test("four-field staff registration → approval → all-department processing �
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/staff");
   await expect(page).toHaveURL(/\/staff\/login$/);
-  await page.getByRole("link", { name: "Register as staff" }).click();
+  await expect(page.getByRole("radio", { name: "Staff / Lecturer", exact: true })).toBeChecked();
+  await page.getByRole("link", { name: "Register for approval" }).click();
   await expect(page.getByRole("heading", { name: "Staff Registration", exact: true })).toBeVisible();
   expect(await page.locator("form input").evaluateAll((inputs) => inputs.map((input) => input.name))).toEqual(["name", "email", "staffId", "password"]);
   await expect(page.locator("form select")).toHaveCount(0);

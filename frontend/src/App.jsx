@@ -29,10 +29,10 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<PortalSelection />} />
-          <Route path="/student/login" element={<Login key="student" />} />
-          <Route path="/admin/login" element={<Login key="admin" adminOnly />} />
+          <Route path="/student/login" element={<Login />} />
+          <Route path="/admin/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/staff/login" element={<Login key="staff" staffOnly />} />
+          <Route path="/staff/login" element={<Login />} />
           <Route path="/staff/register" element={<StaffRegister />} />
           <Route element={<ProtectedRoute roles={["staff"]} />}>
             <Route path="/staff" element={<StaffDashboard />} />

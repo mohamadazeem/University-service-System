@@ -1,59 +1,68 @@
-# Separate student and administrator login
+﻿# Unified homepage and login
 
-The application retains React 19, Vite, React Router, Axios, Express 5, MongoDB/Mongoose, bcrypt and JWT authentication. Existing dashboards, collections and records are preserved. No database migration, environment changes or runtime dependencies are needed. Playwright is a development dependency for browser verification.
+The homepage (`/`) and `/login` now use one centered login panel with three role choices: **Student**, **Staff / Lecturer**, and **Admin**. The old three-card portal layout and large homepage illustration are no longer rendered. The existing University Services brand, blue/navy theme, typography, theme toggle and form components are retained.
 
-## Flow and access
+## Routes and behaviour
 
-- `/login`: University Services branding and two portal cards, side by side on desktop/tablet and stacked on mobile. No login form is shown here.
-- `/student/login`: email/password, show/hide password, student registration and portal-selection links. Success opens `/dashboard`.
-- `/admin/login`: administrator email/password and portal-selection links. Success opens `/admin`.
-- Both forms call the existing `POST /api/auth/login` with an additional `portal` value (`student` or `admin`). The backend validates the password and compares the requested portal with the account's **stored MongoDB role** before signing a token. Selecting a portal cannot assign a role. Requests without `portal` remain compatible with existing API clients; protected endpoints still enforce database roles.
-- Student dashboard, request submission and request tracking require a student on the frontend. Both request API endpoints also require a student. Admin routes and APIs require an administrator. Unauthorized users return to their own dashboard; staff retain shared profile access. The shared profile and public service catalogue remain accessible according to their existing purpose.
-- Unauthenticated private routes redirect to the appropriate form. Expired/invalid sessions clear the stored session and show sign-in guidance. Valid tokens are revalidated through `/api/auth/me` on refresh. Sign out clears the token/user and returns to portal selection.
-- Passwords are hashed with bcrypt and never persisted in the browser. Login preserves password whitespace, matching registration. JWTs retain the existing eight-hour expiry and localStorage strategy; this change does not migrate sessions to HttpOnly cookies. Backend middleware reloads the account to check activation and current role on each protected call.
-- Native required/email validation, disabled controls, loading feedback, error alerts, visible focus indicators and reduced-motion styles support accessible interaction. There is no password-recovery link because password recovery is not implemented.
+| Entry point | Initial role | Successful login |
+| --- | --- | --- |
+| `/`, `/login`, `/student/login` | Student | `/dashboard` |
+| `/staff/login` | Staff / Lecturer | `/staff` |
+| `/admin/login` | Admin | `/admin` |
 
-## Run locally
+`Home.jsx` and `PortalSelection.jsx` reuse the same `Login.jsx` component. Role-specific routes remain valid for bookmarks, registration links and protected-route redirects. Switching roles updates the URL using replace navigation, keeps the email, and clears the password, visibility state and previous error. Browser Back/Forward also synchronizes selection. The role selector uses native radios with arrow-key support, one Tab stop for the group, a selected style, visible focus indicators and touch-friendly targets. The form and role controls are disabled while login is processing.
 
-Use two PowerShell terminals from the repository root:
+The welcome heading is **Welcome to University Services**, followed by **Access university services, manage requests, and stay updated in one place.** The panel is capped at 468px, with **Sign in to your account**, the role selector, university email, password, a show/hide control and one **Sign In** button. Layouts adapt to desktop, tablet and mobile using the existing light/dark theme tokens. There are no large portal cards or distracting illustrations.
 
-```powershell
-cd backend
-npm.cmd ci
-npm.cmd run dev
-```
+- Student selection shows **New student? Create an account**, linked to `/register`.
+- Staff selection shows **New staff member? Register for approval**, linked to `/staff/register`, and explains the approval requirement.
+- Admin selection shows the authorized-account guidance and no public registration link.
+- No forgot-password link is shown because the existing project has no recovery endpoint.
+- Public service browsing remains available in the header. Signed-in users also see **My dashboard**, derived from their current account role.
+
+## Authentication and compatibility
+
+The shared form still calls `AuthProvider.login(email, password, portal)` and the existing `POST /api/auth/login`. The selected role is only the requested portal; it is never used to create a role, forge a session or grant access. Backend password verification, stored role checks, approval checks, rate limiting, JWT creation, `/auth/me` verification, API interceptors, storage, logout and protected-route guards were not changed.
+
+Only approved, active staff can sign in. Pending accounts show the existing administrator-approval message. Rejected or inactive accounts remain denied. A student selecting Admin still receives a backend denial. Redirects after successful login use the returned account's role. Existing student registration, four-field staff registration, services, dashboards, requests, appointments, complaints and notifications remain connected to their original pages and APIs.
+
+No backend changes, database migration, environment changes or dependencies are required for this redesign. Run `npm.cmd start` from the root and open `http://localhost:5173`. If the development server is already running, refresh the browser to see the updated homepage.
+
+## Modified files
+
+- `frontend/src/pages/Login.jsx`: shared layout, role switcher, existing login submission and role-specific guidance.
+- `frontend/src/pages/Home.jsx`, `frontend/src/pages/PortalSelection.jsx`: aliases of the shared component.
+- `frontend/src/App.jsx`: all existing login aliases use the same component without role-specific duplicate forms.
+- `frontend/src/components/Navbar.jsx`: avoids a duplicate header on the homepage/login routes.
+- `frontend/src/styles/login.css`: single-panel layout, segmented selector, form/focus/loading styles and responsive sizing; staff registration styling retained.
+- `frontend/tests/login.spec.js`, `frontend/tests/staff.spec.js`: real authentication scenarios updated for unified role selection.
+- `frontend/tests/support.ui.spec.js`: responsive homepage, keyboard switching, request payload, error reset, registration-link and theme checks.
+- `README.md`, this document and `docs/screenshots/README.md`: current behaviour and screenshot references.
+- `docs/screenshots/unified-login-desktop.png`, `docs/screenshots/unified-login-mobile.png`: actual Chrome screenshots. Prior screenshots are retained as historical comparisons.
+
+## Verification
 
 ```powershell
 cd frontend
-npm.cmd ci
-npm.cmd run dev
-```
-
-Open `http://localhost:5173/login`. Keep your existing `.env` files. The current local API port is 5001 and the frontend proxy points to it; fresh examples default to 5000. Atlas must be reachable and its Network Access allowlist must permit your current public IP. Admin accounts continue to be created using `backend/scripts/provision-admin.js`; there is no default administrator password or public admin registration.
-
-## Verification commands
-
-```powershell
-cd backend
-npm.cmd test
-npm.cmd run test:db
-npm.cmd run test:integration
-cd ../frontend
 npm.cmd run build
 npm.cmd run lint
+npm.cmd run test:ui
 npm.cmd run test:e2e
+cd ../backend
+npm.cmd test
 ```
 
-The browser suite needs installed Google Chrome and database network access. It starts separate servers on ports 5002 and 5174; keep those ports free. It uses the configured backend development database, creates uniquely named temporary accounts, a service and requests, and deletes only those records in cleanup. Do not run it concurrently with the integration suite, whose global count assertions assume no simultaneous writes. Screenshots are saved under ignored `frontend/test-results/`. Traces are disabled to avoid retaining login request payloads.
+The UI suite uses explicit mocked API fixtures for layout, keyboard behaviour, error handling and themes. The real browser suite uses configured MongoDB and temporary uniquely named accounts and requests, deleting its own records afterward; it verifies actual Student, Staff and Admin authentication and request workflows. Installed Chrome and database network access are required. Do not run that browser suite concurrently with the database integration suite, which checks global metric differences.
 
-Verified on 15 October 2026: all 14 backend tests, the real MongoDB integration suite, frontend production build, ESLint and both Chrome browser tests passed. Browser coverage includes selection/link navigation, required fields, password visibility, invalid credentials, actual registration, both role-specific logins, request submission/tracking, refresh, logout, expired sessions, access restrictions, keyboard focus and desktop/tablet/mobile layout. Network failures, 503 responses and loading feedback were tested with intercepted login requests. No uncaught page errors occurred in the real login/request workflow. Screenshots are copied to `docs/screenshots/`.
+Screenshots were inspected at 1440px desktop and 390px mobile widths. Tests also check tablet layout, role-specific links, password visibility, correct login payloads, denial messages, dashboard redirects, refresh/logout/expiry, authorization boundaries and loading/error recovery. No form overflow was observed. Password recovery remains outside the existing project's feature set.
 
-Limits: password recovery remains unimplemented; JWT storage remains in localStorage as in the existing architecture. Real database disconnection during a browser session and a full mobile audit of every existing management screen were not exercised. Atlas connectivity succeeded during verification. `npm audit` also reports one existing high-severity transitive `source-map-js` advisory in the frontend development tooling; resolving that separate dependency issue is outside this login change.
+### Actual results — 17 October 2026
 
-## Files for this change
+- Frontend `npm.cmd run build`: passed.
+- Frontend `npm.cmd run lint`: passed.
+- Frontend `npm.cmd run test:ui`: **8 passed**, including the new keyboard/role/payload/link test and existing theme/support checks.
+- Frontend `npm.cmd run test:e2e`: **4 passed** against MongoDB in Chrome, covering actual Student/Admin sessions, the Staff registration/approval/login/rejection workflow, request processing, support workflows and network/server failures.
+- Backend `npm.cmd test`: **33 passed**. Backend source and authentication behaviour were unchanged.
+- `git diff --check`: passed.
 
-Created: `frontend/src/pages/PortalSelection.jsx`, `frontend/src/components/PortalIcon.jsx`, `frontend/src/styles/login.css`, `frontend/playwright.config.js`, `frontend/tests/login.spec.js`, and this document.
-
-Modified: `frontend/src/pages/Login.jsx`, `frontend/src/pages/Register.jsx`, `frontend/src/App.jsx`, `frontend/src/auth/AuthProvider.jsx`, `frontend/src/components/ProtectedRoute.jsx`, `frontend/src/components/Navbar.jsx`, `frontend/src/admin/AdminLayout.jsx`, `frontend/package.json`, `frontend/package-lock.json`, `frontend/.gitignore`, `backend/controllers/authController.js`, `backend/routes/RequestRoutes.js`, `backend/tests/security.test.js`, `backend/tests/integration.db.js`, `README.md`, `docs/TESTING.md` and `docs/screenshots/README.md`. Four actual login screenshots were added to `docs/screenshots/`.
-
-Earlier backend-startup diagnostic changes in the working tree are retained.
+The UI suite first found a native-radio timing issue during role changes after a failed login. Selection now updates immediately while tracking route changes; the complete UI suite and real browser suite passed after that correction. Database-backed browser tests removed their own temporary records.

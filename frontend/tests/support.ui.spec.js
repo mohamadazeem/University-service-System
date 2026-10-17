@@ -7,21 +7,64 @@ async function session(page, user) {
   await page.addInitScript(() => localStorage.setItem("token", "ui-fixture"));
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user } }));
 }
-test("homepage and portal navigation fit desktop, tablet and mobile", async ({ page }) => {
+test("unified homepage and login fit desktop, tablet and mobile", async ({ page }) => {
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connecting Students to University Services.");
-    await expect(page.locator(".hero-description")).toHaveText("Access university services, submit requests, book appointments, and track your progress — all in one convenient platform.");
-    await expect(page.locator(".home-hero").getByRole("link", { name: "Explore Services" })).toHaveAttribute("href", "/services");
-    await expect(page.getByRole("img", { name: "University campus building" })).toBeVisible();
-    expect(await page.locator(".campus-visual img").evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome to University Services");
+    await expect(page.locator(".login-welcome p")).toHaveText("Access university services, manage requests, and stay updated in one place.");
+    await expect(page.getByRole("link", { name: "Services", exact: true })).toHaveAttribute("href", "/services");
+    await expect(page.locator("form")).toHaveCount(1);
+    await expect(page.getByRole("radiogroup", { name: "Sign in role" })).toBeVisible();
+    await expect(page.getByRole("radio")).toHaveCount(3);
+    await expect(page.locator(".portal-option")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/home-${width}.png`, fullPage: true });
   }
-  await page.getByRole("link", { name: "Student portal", exact: true }).click();
-  await expect(page).toHaveURL(/student\/login$/);
+  await page.getByRole("radio", { name: "Staff / Lecturer", exact: true }).check();
+  await expect(page).toHaveURL(/staff\/login$/);
+  await expect(page.getByRole("link", { name: "Register for approval" })).toHaveAttribute("href", "/staff/register");
 });
+test("role switcher supports keyboard selection, correct login payloads and registration links", async ({ page }) => {
+  const submissions = [];
+  await page.route("**/api/auth/login", async (route) => {
+    const body = route.request().postDataJSON();
+    submissions.push(body);
+    await route.fulfill({ status: 403, json: { message: body.portal === "staff" ? "Your account is awaiting administrator approval." : "This account does not have administrator access. Choose the correct portal." } });
+  });
+  await page.goto("/");
+  await page.getByLabel("University email").fill("member@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("test-password-only");
+  const studentRole = page.getByRole("radio", { name: "Student", exact: true });
+  await studentRole.focus();
+  await page.keyboard.press("ArrowRight");
+  const staffRole = page.getByRole("radio", { name: "Staff / Lecturer", exact: true });
+  await expect(staffRole).toBeChecked();
+  await expect(staffRole).toBeFocused();
+  await expect(page).toHaveURL(/\/staff\/login$/);
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("University email")).toHaveValue("member@example.test");
+  await expect(page.getByRole("link", { name: "Register for approval" })).toHaveAttribute("href", "/staff/register");
+  await expect(page.getByText("Staff accounts require administrator approval before signing in.")).toBeVisible();
+  await page.getByLabel("Password", { exact: true }).fill("test-password-only");
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("Your account is awaiting administrator approval.");
+  await staffRole.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("radio", { name: "Admin", exact: true })).toBeChecked();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByLabel("Password", { exact: true })).toHaveValue("");
+  await expect(page.getByRole("link", { name: /Create an account|Register for approval/ })).toHaveCount(0);
+  await page.getByLabel("Password", { exact: true }).fill("test-password-only");
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("does not have administrator access");
+  expect(submissions.map((body) => body.portal)).toEqual(["staff", "admin"]);
+  expect(await page.evaluate(() => localStorage.getItem("token"))).toBeNull();
+  await page.getByRole("radio", { name: "Student", exact: true }).check();
+  await expect(page.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/register");
+  await expect(page.getByRole("link", { name: /forgot password/i })).toHaveCount(0);
+});
+
 test("student books, submits a complaint and reads notifications", async ({ page }) => {
   await session(page, student);
   let appointments = [], complaints = [], read = false;
@@ -151,7 +194,7 @@ test("theme follows the system, persists a choice and covers public pages", asyn
     await page.screenshot({ path: `test-results/home-dark-${width}.png`, fullPage: true });
   }
   await page.goto("/login");
-  await page.getByRole("link", { name: "Student Login" }).click();
+  await page.getByRole("radio", { name: "Staff / Lecturer", exact: true }).check();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByRole("button", { name: "Switch to light mode" }).click();
   await page.reload();

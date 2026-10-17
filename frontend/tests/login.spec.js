@@ -51,30 +51,30 @@ test.afterAll(async () => {
   } finally { await mongoose.disconnect(); }
 });
 
-const signIn = async (page, accountEmail, button = "Sign In") => {
+const signIn = async (page, accountEmail) => {
   // Wait for the login route's inputs, rather than the outgoing registration form.
   await page.locator("#login-email").fill(accountEmail);
   await page.locator("#login-password").fill(password);
   await expect(page.locator("#login-email")).toHaveValue(accountEmail);
-  await page.getByRole("button", { name: button, exact: true }).click();
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
 };
 
-test("portal selection, real student/admin sessions, registration, requests and access boundaries", async ({ page }) => {
+test("unified role selection, real student/admin sessions, registration, requests and access boundaries", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/login");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Welcome to\s*University Services/);
-  await expect(page.locator("form")).toHaveCount(0);
+  await expect(page.locator("form")).toHaveCount(1);
+  await expect(page.locator(".portal-option")).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: "Student", exact: true })).toBeChecked();
   await page.keyboard.press("Tab");
   await expect(page.locator(".auth-brand")).toBeFocused();
   await expect(page.locator(".auth-brand")).toHaveCSS("outline-style", "solid");
-  const desktopCards = await page.locator(".portal-option").all();
-  expect((await desktopCards[0].boundingBox()).y).toEqual((await desktopCards[1].boundingBox()).y);
-  await page.getByRole("link", { name: "Admin Login" }).click();
+  await page.getByRole("radio", { name: "Admin", exact: true }).check();
   await expect(page).toHaveURL(/\/admin\/login$/);
-  await expect(page.getByRole("heading", { name: "Administrator sign in" })).toBeVisible();
-  await page.getByRole("link", { name: "Back to portal selection" }).click();
-  await page.getByRole("link", { name: "Student Login" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Create an account|Register for approval/ })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Student", exact: true }).check();
   await expect(page).toHaveURL(/\/student\/login$/);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(page.locator("#login-email:invalid")).toHaveCount(1);
@@ -83,7 +83,7 @@ test("portal selection, real student/admin sessions, registration, requests and 
   await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("type", "text");
   await page.getByRole("button", { name: "Hide password" }).click();
   await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("type", "password");
-  await page.getByLabel("Email address").fill(email);
+  await page.getByLabel("University email").fill(email);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText("Invalid email or password");
   await page.getByRole("link", { name: "Create an account" }).click();
@@ -114,10 +114,10 @@ test("portal selection, real student/admin sessions, registration, requests and 
   expect(await page.evaluate(() => localStorage.getItem("token"))).toBeNull();
   await page.goto("/admin/users");
   await expect(page).toHaveURL(/\/admin\/login$/);
-  await signIn(page, email, "Admin Sign In");
+  await signIn(page, email);
   await expect(page.getByRole("alert")).toContainText("does not have administrator access");
   expect(await page.evaluate(() => localStorage.getItem("token"))).toBeNull();
-  await signIn(page, adminEmail, "Admin Sign In");
+  await signIn(page, adminEmail);
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole("heading", { name: /overview/i })).toBeVisible();
   await page.reload();
@@ -143,18 +143,15 @@ test("portal selection, real student/admin sessions, registration, requests and 
   await page.screenshot({ path: "test-results/portal-desktop.png", fullPage: true });
   for (const width of [768, 390]) {
     await page.setViewportSize({ width, height: 844 });
-    await expect(page.getByRole("link", { name: "Admin Login" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Admin", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
-  const cards = await page.locator(".portal-option").all();
-  expect((await cards[1].boundingBox()).y).toBeGreaterThan((await cards[0].boundingBox()).y);
   await page.screenshot({ path: "test-results/portal-mobile.png", fullPage: true });
-  await page.getByRole("link", { name: "Student Login" }).click();
+  await page.getByRole("radio", { name: "Student", exact: true }).check();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: "test-results/student-login-mobile.png", fullPage: true });
-  await page.getByRole("link", { name: "Back to portal selection" }).click();
-  await page.getByRole("link", { name: "Admin Login" }).click();
-  await expect(page.getByRole("heading", { name: "Administrator sign in" })).toBeVisible();
+  await page.getByRole("radio", { name: "Admin", exact: true }).check();
+  await expect(page.getByRole("radio", { name: "Admin", exact: true })).toBeChecked();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: "test-results/admin-login-mobile.png", fullPage: true });
   expect(errors).toEqual([]);
@@ -187,7 +184,7 @@ test("real support workflows persist across student and administrator sessions",
   const switchPortal = async (role, accountEmail) => {
     await page.evaluate(() => localStorage.clear());
     await page.goto(role === "admin" ? "/admin/login" : "/student/login");
-    await signIn(page, accountEmail, role === "admin" ? "Admin Sign In" : "Sign In");
+    await signIn(page, accountEmail);
     await expect(page).toHaveURL(role === "admin" ? /\/admin$/ : /\/dashboard$/);
   };
   await page.goto("/login");

@@ -1,6 +1,11 @@
 # Actual interface screenshot checklist
 
-Actual headless Chrome captures from the login browser suite:
+Current unified login, captured in headless Chrome on 17 October 2026:
+
+- [Unified login — desktop](unified-login-desktop.png)
+- [Unified login — mobile](unified-login-mobile.png)
+
+Historical captures of the previous portal-card design (retained for comparison):
 
 - [Desktop portal selection](login-portals-desktop.png)
 - [Mobile portal selection](login-portals-mobile.png)
