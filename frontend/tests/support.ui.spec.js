@@ -7,10 +7,17 @@ async function session(page, user) {
   await page.addInitScript(() => localStorage.setItem("token", "ui-fixture"));
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user } }));
 }
-test("unified homepage and login fit desktop, tablet and mobile", async ({ page }) => {
+test("original homepage and unified login fit desktop, tablet and mobile", async ({ page }) => {
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Connecting Students to University Services.");
+    await expect(page.getByRole("img", { name: "University campus building" })).toBeVisible();
+    await expect(page.locator("form")).toHaveCount(0);
+    await expect(page.locator(".home-hero").getByRole("link", { name: "Sign In", exact: true })).toHaveAttribute("href", "/login");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/home-${width}.png`, fullPage: true });
+    await page.locator(".home-hero").getByRole("link", { name: "Sign In", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome to University Services");
     await expect(page.locator(".login-welcome p")).toHaveText("Access university services, manage requests, and stay updated in one place.");
     await expect(page.getByRole("link", { name: "Services", exact: true })).toHaveAttribute("href", "/services");
@@ -19,7 +26,7 @@ test("unified homepage and login fit desktop, tablet and mobile", async ({ page 
     await expect(page.getByRole("radio")).toHaveCount(3);
     await expect(page.locator(".portal-option")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: `test-results/home-${width}.png`, fullPage: true });
+    await page.screenshot({ path: `test-results/login-${width}.png`, fullPage: true });
   }
   await page.getByRole("radio", { name: "Staff / Lecturer", exact: true }).check();
   await expect(page).toHaveURL(/staff\/login$/);
@@ -32,7 +39,7 @@ test("role switcher supports keyboard selection, correct login payloads and regi
     submissions.push(body);
     await route.fulfill({ status: 403, json: { message: body.portal === "staff" ? "Your account is awaiting administrator approval." : "This account does not have administrator access. Choose the correct portal." } });
   });
-  await page.goto("/");
+  await page.goto("/login");
   await page.getByLabel("University email").fill("member@example.test");
   await page.getByLabel("Password", { exact: true }).fill("test-password-only");
   const studentRole = page.getByRole("radio", { name: "Student", exact: true });

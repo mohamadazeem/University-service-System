@@ -1,16 +1,16 @@
 ﻿# Unified homepage and login
 
-The homepage (`/`) and `/login` now use one centered login panel with three role choices: **Student**, **Staff / Lecturer**, and **Admin**. The old three-card portal layout and large homepage illustration are no longer rendered. The existing University Services brand, blue/navy theme, typography, theme toggle and form components are retained.
+The original campus homepage is restored at `/`, including its navigation, campus image, service links and Sign In action. `/login` uses one centered login panel with three role choices: **Student**, **Staff / Lecturer**, and **Admin**. The old three-card portal selection is removed; the original homepage is preserved.
 
 ## Routes and behaviour
 
 | Entry point | Initial role | Successful login |
 | --- | --- | --- |
-| `/`, `/login`, `/student/login` | Student | `/dashboard` |
+| `/login`, `/student/login` | Student | `/dashboard` |
 | `/staff/login` | Staff / Lecturer | `/staff` |
 | `/admin/login` | Admin | `/admin` |
 
-`Home.jsx` and `PortalSelection.jsx` reuse the same `Login.jsx` component. Role-specific routes remain valid for bookmarks, registration links and protected-route redirects. Switching roles updates the URL using replace navigation, keeps the email, and clears the password, visibility state and previous error. Browser Back/Forward also synchronizes selection. The role selector uses native radios with arrow-key support, one Tab stop for the group, a selected style, visible focus indicators and touch-friendly targets. The form and role controls are disabled while login is processing.
+`Home.jsx` renders the original homepage; `PortalSelection.jsx` reuses `Login.jsx` for the unified login page. Role-specific routes remain valid for bookmarks, registration links and protected-route redirects. Switching roles updates the URL using replace navigation, keeps the email, and clears the password, visibility state and previous error. Browser Back/Forward also synchronizes selection. The role selector uses native radios with arrow-key support, one Tab stop for the group, a selected style, visible focus indicators and touch-friendly targets. The form and role controls are disabled while login is processing.
 
 The welcome heading is **Welcome to University Services**, followed by **Access university services, manage requests, and stay updated in one place.** The panel is capped at 468px, with **Sign in to your account**, the role selector, university email, password, a show/hide control and one **Sign In** button. Layouts adapt to desktop, tablet and mobile using the existing light/dark theme tokens. There are no large portal cards or distracting illustrations.
 
@@ -31,9 +31,9 @@ No backend changes, database migration, environment changes or dependencies are 
 ## Modified files
 
 - `frontend/src/pages/Login.jsx`: shared layout, role switcher, existing login submission and role-specific guidance.
-- `frontend/src/pages/Home.jsx`, `frontend/src/pages/PortalSelection.jsx`: aliases of the shared component.
+- `frontend/src/pages/Home.jsx`: original campus homepage restored. `frontend/src/pages/PortalSelection.jsx`: alias of the shared login component.
 - `frontend/src/App.jsx`: all existing login aliases use the same component without role-specific duplicate forms.
-- `frontend/src/components/Navbar.jsx`: avoids a duplicate header on the homepage/login routes.
+- `frontend/src/components/Navbar.jsx`: shows the original homepage navigation and avoids a duplicate header on login routes.
 - `frontend/src/styles/login.css`: single-panel layout, segmented selector, form/focus/loading styles and responsive sizing; staff registration styling retained.
 - `frontend/tests/login.spec.js`, `frontend/tests/staff.spec.js`: real authentication scenarios updated for unified role selection.
 - `frontend/tests/support.ui.spec.js`: responsive homepage, keyboard switching, request payload, error reset, registration-link and theme checks.
