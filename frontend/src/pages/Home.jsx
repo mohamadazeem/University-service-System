@@ -55,10 +55,6 @@ export default function Home() {
         <div><h2>Need help getting started?</h2><p>Check the service catalogue for department information. For account access, contact your university's usual student support team.</p></div>
         <Link className="button-link secondary" to="/services">Find a service<Icon name="arrow" size={18} /></Link>
       </section>
-      <footer className="home-footer">
-        <div><strong>University Services</strong><p>One place for your university services and support.</p></div>
-        <nav aria-label="Footer navigation"><Link to="/services">Service catalogue</Link><Link to="/student/login">Student portal</Link><Link to="/admin/login">Admin portal</Link></nav>
-      </footer>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
 import AuthProvider from "./auth/AuthProvider";
-import Navbar from "./components/Navbar";
+import SiteLayout from "./components/SiteLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -30,7 +30,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Navbar />
+        <SiteLayout>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<PortalSelection />} />
@@ -85,6 +85,7 @@ export default function App() {
             }
           />
         </Routes>
+        </SiteLayout>
       </AuthProvider>
     </BrowserRouter>
   );

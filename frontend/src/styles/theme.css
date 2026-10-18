@@ -76,7 +76,7 @@ th, .badge, .filters label, .metric-card small, .table-button, .quick-action p {
 td, .chart-legend li, .quick-action h3 { font-size: 13px; }
 .admin-sidebar nav a, .sidebar-bottom a, .collapse-toggle { font-size: 13px; }
 .profile-menu summary small, .trend-column small, .trend-column strong, .donut span { font-size: 12px; }
-.portal-footer, .admin-footer, .back-to-portals { font-size: 12px; }
+.admin-footer, .back-to-portals { font-size: 12px; }
 .portal-content { max-width: 920px; }
 .portal-option { box-shadow: 0 8px 28px #10294706; }
 .portal-option:hover, .portal-option:focus-within { transform: none; }
@@ -109,9 +109,6 @@ td, .chart-legend li, .quick-action h3 { font-size: 13px; }
 .home-cards h3 { font-size: 18px; }
 .home-cards a { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
 .home-section { padding: 48px 0; }
-.home-footer { padding: 32px 0 0; align-items: flex-start; }
-.home-footer strong { color: var(--heading); }
-.home-footer p { margin-top: 8px; }
 .home-support p { color: #d2deef; }
 :root[data-theme="dark"] .portal-option-admin .portal-action { background: #244c95; border-color: #517fc9; }
 :root[data-theme="dark"] .portal-content > .eyebrow { color: var(--link); }
@@ -135,7 +132,6 @@ td, .chart-legend li, .quick-action h3 { font-size: 13px; }
 @media (max-width: 480px) {
   .home-cards { grid-template-columns: 1fr; }
   .portal-header-actions { gap: 12px; }
-  .home-footer nav { flex-direction: column; gap: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }

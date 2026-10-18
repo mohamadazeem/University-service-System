@@ -4,7 +4,7 @@
   flex-direction: column;
   background: var(--canvas);
 }
-.portal-header, .portal-footer {
+.portal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -55,7 +55,6 @@
 .login-account-help .login-role-note { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .login-account-help p + .login-role-note { margin-top: 10px; }
 .portal-login-card .notice { margin-top: 18px; margin-bottom: 18px; }
-.portal-footer { color: var(--muted); font-size: 11px; padding-top: 18px; padding-bottom: 20px; }
 .staff-registration-card label { margin-bottom: 7px; }
 .staff-registration-card input { margin-bottom: 18px; }
 .staff-registration-card .password-field { margin-bottom: 8px; }
@@ -73,7 +72,6 @@
   .portal-page .portal-login-card { padding: 26px 22px 24px; }
   .portal-login-card h2 { font-size: 21px; }
   .portal-login-card .login-role { font-size: 11px; gap: 4px; }
-  .portal-footer { padding: 16px 20px; flex-wrap: wrap; gap: 8px; }
 }
 @media (max-width: 360px) {
   .portal-page .portal-login-card { padding-left: 18px; padding-right: 18px; }

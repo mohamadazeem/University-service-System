@@ -112,10 +112,6 @@ export default function Login() {
           </div>
         </section>
       </main>
-      <footer className="portal-footer">
-        <span>University Service System</span>
-        <span>One place for your university services.</span>
-      </footer>
     </div>
   );
 }

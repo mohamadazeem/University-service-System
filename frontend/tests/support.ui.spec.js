@@ -272,3 +272,48 @@ test("theme toggle remains usable with blocked storage and reduced motion", asyn
   await expect(page.locator(".theme-toggle")).toHaveCSS("transition-duration", "0s");
   expect(errors).toEqual([]);
 });
+
+test("public footer has only working quick links, fits all sizes and stays outside workspaces", async ({ page }) => {
+  await page.route("**/api/services", route => route.fulfill({ json: { services: [] } }));
+  const footer = page.locator(".site-footer");
+  for (const width of [1440, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/", "/services", "/student/login", "/staff/login", "/admin/login", "/register", "/staff/register", "/missing-page"]) {
+      await page.goto(path);
+      await expect(footer).toHaveCount(1);
+      await expect(footer.locator("a")).toHaveCount(2);
+      await expect(footer.getByRole("link", { name: "Home", exact: true })).toHaveAttribute("href", "/");
+      await expect(footer.getByRole("link", { name: "Service Catalogue", exact: true })).toHaveAttribute("href", "/services");
+      await expect(footer).toContainText("Your central platform for university services, requests, and support.");
+      await expect(footer).toContainText("© 2026 University Services. All rights reserved.");
+      await expect(footer.getByRole("link", { name: /portal|login/i })).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const layout = await page.evaluate(() => {
+        const footer = document.querySelector(".site-footer");
+        const main = document.querySelector("main");
+        return { bottom: footer.getBoundingClientRect().bottom + scrollY, height: document.documentElement.scrollHeight, top: footer.getBoundingClientRect().top, contentBottom: main.getBoundingClientRect().bottom, position: getComputedStyle(footer).position };
+      });
+      expect(Math.abs(layout.bottom - layout.height)).toBeLessThanOrEqual(2);
+      expect(layout.top).toBeGreaterThanOrEqual(layout.contentBottom - 1);
+      expect(layout.position).not.toBe("fixed");
+      if (path === "/missing-page") expect(layout.height).toBe(900);
+    }
+    await page.goto("/"); await footer.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `test-results/footer-${width}.png`, fullPage: true });
+  }
+  await footer.getByRole("link", { name: "Service Catalogue", exact: true }).click();
+  await expect(page).toHaveURL(/\/services$/);
+  await footer.getByRole("link", { name: "Home", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await footer.getByRole("link", { name: "Home", exact: true }).focus();
+  await expect(footer.getByRole("link", { name: "Home", exact: true })).toBeFocused();
+  await session(page, admin);
+  await page.route("**/api/admin/appointments?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
+  await page.goto("/admin/appointments");
+  await expect(page.locator(".admin-footer")).toHaveCount(1); await expect(footer).toHaveCount(0);
+  await page.unroute("**/api/auth/me");
+  await page.route("**/api/auth/me", route => route.fulfill({ json: { user: { ...student, role: "staff", approvalStatus: "approved" } } }));
+  await page.route("**/api/staff/bookings?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
+  await page.goto("/staff/bookings");
+  await expect(page.locator(".staff-footer")).toHaveCount(1); await expect(footer).toHaveCount(0);
+});
