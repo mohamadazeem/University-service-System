@@ -43,7 +43,7 @@ const getUser = async (req, res) => {
   res.json({ user, requestCount });
 };
 const staffOptions = async (req, res) => {
-  const staff = await User.find({ role: "staff", active: { $ne: false }, approvalStatus: "approved" })
+  const staff = await User.find({ role: "staff", ...(req.query.availability === "true" ? {} : { active: { $ne: false }, approvalStatus: "approved" }) })
     .select("name email")
     .sort({ name: 1 });
   res.json({ staff });

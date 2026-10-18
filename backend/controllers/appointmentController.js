@@ -103,10 +103,12 @@ exports.list = discovery => async (req, res) => {
   const filter = discovery ? { active: true, status: { $in: ["Published", null] }, startsAt: { $gt: new Date() } } : slotScope(req.user);
   if (!discovery && req.query.status) {
     const status = v.choice(req.query.status, ["Draft", "Published", "Closed", "Cancelled"], "status");
-    if (status === "Closed") Object.assign(filter, { active: false, status: { $ne: "Cancelled" } });
+    if (status === "Closed") filter.$and = [{ $or: [{ status: "Closed" }, { active: false, status: { $ne: "Cancelled" } }] }];
     else if (status === "Published") Object.assign(filter, { active: true, status: { $in: ["Published", null] } });
     else filter.status = status;
   }
+  // Staff filters must never replace authenticated ownership.
+  if (!discovery && req.user.role === "admin" && req.query.staff) filter.staff = v.id(req.query.staff);
   if (req.query.service) filter.service = v.id(req.query.service);
   if (req.query.date) {
     const date = v.text(req.query.date, "Date", 10);

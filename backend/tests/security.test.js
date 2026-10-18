@@ -59,7 +59,7 @@ const mockAccounts = (t) =>
     select: async () => accounts[value],
   }));
 test("unauthenticated access to every admin resource is refused", async () => {
-  for (const path of ["dashboard", "requests", "users", "services", "staff", "appointments", "complaints"])
+  for (const path of ["dashboard", "requests", "users", "services", "staff", "appointments", "appointment-slots", "complaints"])
     assert.equal((await call("/api/admin/" + path)).status, 401);
 });
 test("student cannot access admin reads or writes, even with an admin role claim", async (t) => {

@@ -18,6 +18,7 @@ import AdminRequests from "./admin/AdminRequests";
 import AdminUsers from "./admin/AdminUsers";
 import AdminServices from "./admin/AdminServices";
 import Support from "./pages/Support";
+import AdminAppointments from "./admin/AdminAppointments";
 import Notifications from "./pages/Notifications";
 import StaffRegister from "./pages/StaffRegister";
 import StaffDashboard from "./pages/StaffDashboard";
@@ -69,8 +70,8 @@ export default function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="staff-approvals" element={<StaffApprovals />} />
               <Route path="services" element={<AdminServices />} />
-              <Route path="appointments" element={<Support key="admin-appointments" kind="appointments" admin />} />
-              <Route path="appointment-slots" element={<Navigate to="/admin/appointments" replace />} />
+              <Route path="appointments" element={<AdminAppointments />} />
+              <Route path="appointment-slots" element={<Navigate to="/admin/appointments?view=availability" replace />} />
               <Route path="complaints" element={<AdminComplaints />} />
               <Route path="notifications" element={<Notifications admin />} />
             </Route>

@@ -70,6 +70,21 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     assert.equal(details.bookings.length, 2); assert.equal(details.slot.remaining, 0);
     assert.ok(details.bookings.every(item => item.student.password === undefined));
     assert.equal((await call("/admin/appointment-slots/" + id, admin)).code, 200);
+    // Admin availability is independent of bookings and includes every staff owner.
+    const secondSlot = await call("/staff/appointment-slots", other, "POST", { ...body, title: prefix + " other" });
+    assert.equal(secondSlot.code, 201); owned.slots.push(secondSlot.slot._id);
+    const allSlots = await call("/admin/appointment-slots?q=" + prefix, admin);
+    assert.equal(allSlots.code, 200); assert.equal(allSlots.total, 3);
+    assert.ok(allSlots.items.some(slot => slot._id === secondSlot.slot._id && slot.status === "Draft" && slot.staff.name && slot.service.name));
+    assert.ok(allSlots.items.some(slot => slot._id === id && slot.booked === 2 && slot.remaining === 0));
+    const filtered = await call("/admin/appointment-slots?q=" + prefix + "&staff=" + other.id + "&status=Draft&service=" + service._id + "&date=" + body.startsAt.slice(0,10), admin);
+    assert.equal(filtered.total, 1); assert.equal(filtered.items[0]._id, secondSlot.slot._id);
+    assert.equal((await call("/staff/appointment-slots?q=" + prefix + "&staff=" + staff.id, other)).total, 1);
+    for (const actor of [other, students[0]]) {
+      assert.equal((await call("/admin/appointment-slots", actor)).code, 403);
+      assert.equal((await call("/admin/appointment-slots/" + id, actor)).code, 403);
+    }
+    assert.equal((await call("/appointments", students[0], "POST", { slot: secondSlot.slot._id, reason: "Unpublished" })).code, 409);
     // The central Admin page receives slot and account details and reviews bookings.
     const adminList = await call("/admin/appointments?q=" + bookingId, admin);
     assert.equal(adminList.code, 200);
@@ -114,6 +129,12 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     const schedules = await Promise.all([0, 15].map(minutes => call("/staff/appointment-slots", staff, "POST", { ...body, startsAt: new Date(anotherStart.getTime()+minutes*60000).toISOString(), endsAt: new Date(anotherStart.getTime()+(minutes+60)*60000).toISOString() })));
     for (const result of schedules) if (result.code === 201) owned.slots.push(result.slot._id);
     assert.deepEqual(schedules.map(result => result.code).sort(), [201,409]);
+    const past = await Slot.create({ staff: other.id, startsAt: new Date(Date.now() - 86400000), title: prefix + " past", service: service._id, status: "Published" });
+    owned.slots.push(past._id);
+    const historical = await call("/admin/appointment-slots?q=" + encodeURIComponent(prefix + " past"), admin);
+    assert.equal(historical.total, 1); assert.equal(historical.items[0]._id, String(past._id));
+    assert.equal((await call("/appointments/availability?q=" + encodeURIComponent(prefix + " past"), students[0])).total, 0);
+    assert.equal((await call("/appointments", students[0], "POST", { slot: String(past._id), reason: "Expired slot" })).code, 409);
     // Pre-existing single-capacity documents have a 30 minute effective window.
     const legacyId = new mongoose.Types.ObjectId(); owned.slots.push(legacyId);
     await Slot.collection.insertOne({ _id: legacyId, staff: other.id, startsAt: new Date(start.getTime()+2*86400000), active: true, location: "Legacy office" });

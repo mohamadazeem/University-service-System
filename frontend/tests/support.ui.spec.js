@@ -170,7 +170,7 @@ test("admin rejects bookings, filters statuses and views historical records with
     status = "Rejected";
     return route.fulfill({ json: { message: "Booking updated successfully." } });
   });
-  await page.goto("/admin/appointment-slots");
+  await page.goto("/admin/appointments");
   await expect(page).toHaveURL(/\/admin\/appointments$/);
   await page.getByRole("button", { name: "Review", exact: true }).click();
   const dialog = page.getByRole("dialog");
