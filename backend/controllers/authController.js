@@ -14,6 +14,7 @@ const registerStaff = async (req, res) => {
   await User.create({
     name, email, password: await bcrypt.hash(password, 12), staffId,
     role: "staff", approvalStatus: "pending", active: true,
+    notificationEvents: [require("../utils/notificationEvent").adminEvent("A new staff registration requires approval.", { title: "Staff approval required" })],
   });
   res.status(201).json({ message: "Registration submitted successfully. Please wait for administrator approval before signing in." });
 };

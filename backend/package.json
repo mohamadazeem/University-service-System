@@ -10,7 +10,7 @@
     "audit:staff-ids": "node scripts/audit-staff-ids.js",
     "test": "node --test tests/*.test.js",
     "provision:admin": "node scripts/provision-admin.js",
-    "test:integration": "node --test --test-concurrency=1 tests/integration.db.js tests/staff.integration.js tests/staffSupport.integration.js tests/availability.integration.js tests/complaintAssignment.integration.js",
+    "test:integration": "node --test --test-concurrency=1 tests/integration.db.js tests/staff.integration.js tests/staffSupport.integration.js tests/availability.integration.js tests/complaintAssignment.integration.js tests/notifications.integration.js",
     "import:catalogue": "node scripts/import-catalogue.js"
   },
   "keywords": [],

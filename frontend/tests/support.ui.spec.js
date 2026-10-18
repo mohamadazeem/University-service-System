@@ -6,6 +6,7 @@ const slot = { status: "Published", capacity: 1, remaining: 1, endsAt: "2099-01-
 async function session(page, user) {
   await page.addInitScript(() => localStorage.setItem("token", "ui-fixture"));
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user } }));
+  await page.route("**/api/notifications/unread-count", route => route.fulfill({ json: { unread: 0 } }));
   await page.route("**/api/admin/complaints/overview", route => route.fulfill({ json: { total: 0, unassigned: 0, inProgress: 0, resolved: 0, highPriority: 0 } }));
 }
 test("original homepage and unified login fit desktop, tablet and mobile", async ({ page }) => {

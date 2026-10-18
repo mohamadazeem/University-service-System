@@ -24,7 +24,7 @@ const createRequest = async (req, res) => {
   if (!service)
     v.fail("This service is unavailable. Choose an active service.", 404);
   const request = await Request.create({
-    notificationEvents: [require("../utils/notificationEvent").event(req.user.id, "Your service request has been submitted.")],
+    notificationEvents: [require("../utils/notificationEvent").event(req.user.id, "Your service request has been submitted."), require("../utils/notificationEvent").adminEvent("A new service request requires assignment.", { title: "Request awaiting assignment" })],
     student: req.user.id,
     service: service.name,
     serviceRef: service._id,

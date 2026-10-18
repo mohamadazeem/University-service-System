@@ -43,7 +43,7 @@ const review = async (req, res) => {
     _id: id, role: "staff", updatedAt: timestamp === null ? null : new Date(timestamp), ...statusFilter(expected),
   }, {
     $set: { approvalStatus, reviewedBy: req.user.id, reviewedAt },
-    $push: { approvalHistory: event },
+    $push: { approvalHistory: event, notificationEvents: require("../utils/notificationEvent").event(id, `Your staff registration was ${approvalStatus}.`, { title: "Staff registration decision" }) },
   }, { returnDocument: "after", runValidators: true });
   if (!user) v.fail("Registration changed or no longer exists. Reload its details before reviewing.", 409);
   res.json({ message: `Staff registration ${approvalStatus}`, user });

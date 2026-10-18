@@ -185,7 +185,7 @@ See [database design and ER diagram](docs/DATABASE.md). Existing collection/mode
 - User: identity/contact fields, studentId, bcrypt password, student/staff/admin role, active flag, timestamps. Email unique; optional studentId unique/sparse. Password is excluded by default.
 - Service: name, description, department, optional processingTime, active, timestamps; internal normalized nameKey.
 - Request: student reference, service name snapshot, optional serviceRef, studentId, description, priority, existing five-state status, optional assignedStaff reference, staffComment, document reference and timestamps.
-- Appointment, Complaint and Notification models are retained; no new screens or API functionality is claimed for them.
+- Appointment, Complaint and Notification models and existing records are retained. Student, Staff and Admin headers share a persisted notification bell and role-scoped inbox. See [notification behavior, APIs, recipient policy and verification](docs/NOTIFICATIONS.md).
 
 Legacy users without an active field are treated as active. Existing requests without serviceRef remain readable. No historical names, descriptions or IDs are rewritten. Request indexes support status/date, student/date and serviceRef access. Safe-delete actions preserve all history; they do not physically erase records.
 

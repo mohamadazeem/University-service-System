@@ -82,6 +82,7 @@ test("staff publishes, students book, admin reviews, staff edits and cancels wit
   await page.getByRole("button", { name: "Confirm booking", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("Appointment booked successfully. Awaiting staff approval.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Notifications", exact: true }).locator(".notification-count")).toHaveText("1");
   await expect(page.locator(".appointment-card")).toContainText("1 of 2 spaces available");
   await expect(page.getByLabel("My Appointments", { exact: true })).toContainText("Please advise on my service request.");
   // The server rejects a duplicate even while another space remains.

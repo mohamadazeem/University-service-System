@@ -11,6 +11,7 @@ import useAuth from "../auth/useAuth";
 import "./admin.css";
 import Icon from "../components/Icon";
 import ThemeToggle from "../components/ThemeToggle";
+import NotificationBell from "../components/NotificationBell";
 const links = [
   ["/admin", "Overview", "overview"],
   ["/admin/requests", "Requests", "requests"],
@@ -139,7 +140,7 @@ export default function AdminLayout() {
               Administration <span className="muted">/ {page}</span>
             </span>
           </div>
-          <div className="topbar-actions"><ThemeToggle /><details className="profile-menu">
+          <div className="topbar-actions"><NotificationBell /><ThemeToggle /><details className="profile-menu">
             <summary>
               <span className="avatar">{user?.name?.slice(0, 1)}</span>
               <span>

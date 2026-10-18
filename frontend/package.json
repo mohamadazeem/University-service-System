@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:ui": "playwright test --config playwright.ui.config.js"
+    "test:ui": "playwright test --config playwright.ui.config.js",
+    "test:notifications": "playwright test --config playwright.notifications.config.js"
   },
   "dependencies": {
     "axios": "^1.20.0",

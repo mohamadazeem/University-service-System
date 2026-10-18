@@ -96,6 +96,7 @@ const updateRequest = async (req, res) => {
     "expectedUpdatedAt",
     "assignedStaff",
     "staffComment",
+    "priority",
   ]);
   const recordId = v.id(req.params.id);
   const request = await (req.user.role === "staff"
@@ -103,6 +104,7 @@ const updateRequest = async (req, res) => {
     : Request.findById(recordId));
   if (!request) v.fail("Request not found", 404);
   const values = {};
+  if (req.body.priority !== undefined) values.priority = v.choice(req.body.priority, ["Normal", "Urgent"], "priority");
   if (req.body.expectedUpdatedAt !== undefined) {
     const timestamp = v.text(req.body.expectedUpdatedAt, "Last updated timestamp", 40);
     if (Number.isNaN(Date.parse(timestamp))) v.fail("Invalid last updated timestamp");
@@ -144,10 +146,18 @@ const updateRequest = async (req, res) => {
       false,
     );
   if (!Object.keys(values).length) v.fail("No changes provided");
+  const { event } = require("../utils/notificationEvent");
+  const notices = [event(request.student, `Your service request was updated${values.status ? ": " + values.status : ""}.`)];
+  if (values.assignedStaff && String(values.assignedStaff) !== String(request.assignedStaff || ""))
+    notices.push(event(values.assignedStaff, "A service request has been assigned to you.", { title: "New request assignment" }));
+  if (values.assignedStaff !== undefined && request.assignedStaff && String(values.assignedStaff || "") !== String(request.assignedStaff))
+    notices.push(event(request.assignedStaff, "A service request was reassigned away from you.", { title: "Request reassigned" }));
+  if (req.user.role === "admin" && request.assignedStaff && values.assignedStaff === undefined)
+    notices.push(event(request.assignedStaff, "An administrator updated your assigned service request."));
   // The condition prevents overwriting a concurrent status update.
   const updated = await Request.findOneAndUpdate(
     { _id: recordId, ...requestScope(req.user), status: request.status, updatedAt: request.updatedAt },
-    { $set: values, $push: { notificationEvents: require("../utils/notificationEvent").event(request.student, `Your service request was updated${values.status ? ": " + values.status : ""}.`) } },
+    { $set: values, $push: { notificationEvents: { $each: notices } } },
     { returnDocument: "after", runValidators: true },
   ).populate(populate);
   if (!updated) v.fail("This request changed. Reload its details.", 409);

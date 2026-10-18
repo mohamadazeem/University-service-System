@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { appointmentFields } from "../src/utils/appointmentTime.js";
 
 const requireBackend = createRequire(new URL("../../backend/package.json", import.meta.url));
 requireBackend("dotenv").config({ path: fileURLToPath(new URL("../../backend/.env", import.meta.url)), quiet: true });
@@ -44,6 +45,7 @@ test.afterAll(async () => {
         await Request.deleteOne({ _id: request._id });
       await User.deleteOne({ _id: student._id });
     }
+    await Notification.deleteMany({ user: { $in: [adminId, staffId].filter(Boolean) } });
     if (adminId) await User.deleteOne({ _id: adminId });
     for (const id of ownedSlots) await Slot.deleteOne({ _id: id });
     if (staffId) await User.deleteOne({ _id: staffId });
@@ -183,20 +185,25 @@ test("real support workflows persist across student and administrator sessions",
   if (!(await User.exists({ email }))) await User.create({ name: "Support Test Student", email, studentId: prefix, password: await bcrypt.hash(password, 12), role: "student" });
   const switchPortal = async (role, accountEmail) => {
     await page.evaluate(() => localStorage.clear());
-    await page.goto(role === "admin" ? "/admin/login" : "/student/login");
+    await page.goto(`/${role}/login`);
     await signIn(page, accountEmail);
-    await expect(page).toHaveURL(role === "admin" ? /\/admin$/ : /\/dashboard$/);
+    await expect(page).toHaveURL(role === "admin" ? /\/admin$/ : role === "staff" ? /\/staff$/ : /\/dashboard$/);
   };
   await page.goto("/login");
-  await switchPortal("admin", adminEmail);
-  await page.goto("/admin/appointments");
+  await switchPortal("staff", prefix + "-staff@example.test");
+  await page.goto("/staff/appointments");
+  await page.getByRole("button", { name: "Create Availability", exact: true }).click();
+  await page.getByLabel("Service category", { exact: true }).selectOption("Browser testing");
+  await page.getByLabel("University service", { exact: true }).selectOption(String(serviceId));
+  await page.getByLabel("Appointment title", { exact: true }).fill(prefix);
+  await page.getByLabel("Description / purpose", { exact: true }).fill("Temporary browser test appointment");
+  await page.getByLabel("Appointment date", { exact: true }).last().fill(appointmentFields(new Date(Date.now() + 86400000)).date);
+  await page.getByLabel("Start time", { exact: true }).fill("09:00");
+  await page.getByLabel("End time", { exact: true }).fill("10:00");
+  await page.getByLabel("Building / department", { exact: true }).fill("Student Services");
+  await page.getByLabel("Room / office", { exact: true }).fill("Office 1");
   await page.getByRole("button", { name: "Publish availability" }).click();
-  await page.getByLabel("Staff member").selectOption(staffId.toString());
-  const future = new Date(Date.now() + 86400000);
-  const localTime = new Date(future.getTime() - future.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  await page.getByLabel("Start date and time").fill(localTime);
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator(".notice-success")).toHaveText("Saved successfully.");
+  await expect(page.locator(".notice-success")).toHaveText("Availability published successfully.");
   const storedSlot = await Slot.findOne({ staff: staffId });
   expect(storedSlot).toBeTruthy();
   ownedSlots.push(storedSlot._id);
@@ -240,9 +247,9 @@ test("real support workflows persist across student and administrator sessions",
   await expect(page.getByText("Temporary browser concern resolved.", { exact: true })).toBeVisible();
   await page.goto("/notifications");
   await expect(page.getByText("Complaint status: Resolved.", { exact: true })).toBeVisible();
-  await page.locator(".support-record").filter({ hasText: "Complaint status: Resolved." }).getByRole("button", { name: "Mark as read" }).click();
-  await expect(page.locator(".support-record").filter({ hasText: "Complaint status: Resolved." }).getByRole("button")).toHaveCount(0);
+  await page.locator(".notification-item").filter({ hasText: "Complaint status: Resolved." }).getByRole("button", { name: "Mark as read" }).click();
+  await expect(page.locator(".notification-item").filter({ hasText: "Complaint status: Resolved." }).getByRole("button")).toHaveCount(0);
   await page.reload();
-  await expect(page.locator(".support-record").filter({ hasText: "Complaint status: Resolved." }).getByRole("button")).toHaveCount(0);
+  await expect(page.locator(".notification-item").filter({ hasText: "Complaint status: Resolved." }).getByRole("button")).toHaveCount(0);
   expect(await Notification.countDocuments({ user: student._id, isRead: true })).toBeGreaterThan(0);
 });

@@ -9,7 +9,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (/^(post|patch|put|delete)$/i.test(response.config.method || "") &&
+        !/^\/(auth|notifications)(\/|$)/.test(response.config.url || "")) {
+      window.dispatchEvent(new Event("notifications-changed"));
+    }
+    return response;
+  },
   (error) => {
     if (
       error.response?.status === 401 &&

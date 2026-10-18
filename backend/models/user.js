@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema(
     },
 
     appointmentScheduleVersion: { type: Number, default: 0, select: false },
+    notificationEvents: { type: [require("../utils/notificationEvent").schema], select: false, default: undefined },
     active: { type: Boolean, default: true },
 
     studentId: {

@@ -1,13 +1,14 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../auth/useAuth";
 import ThemeToggle from "./ThemeToggle";
+import NotificationBell from "./NotificationBell";
 export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   if ((user?.role === "staff" && (location.pathname === "/staff" || location.pathname.startsWith("/staff/"))) || location.pathname.startsWith("/admin") || ["/login", "/student/login", "/staff/login"].includes(location.pathname)) return null;
   return (
-    <header className="site-header">
+    <header className={`site-header ${user ? "authenticated-header" : ""}`}>
       <Link className="site-brand" to="/">
         <span className="brand-mark">U</span>
         <span>University Services</span>
@@ -47,8 +48,9 @@ export default function Navbar() {
             </Link>
           </>
         )}
-        <ThemeToggle />
+        {!user && <ThemeToggle />}
       </nav>
+      {user && <div className="site-header-actions"><NotificationBell /><ThemeToggle /></div>}
     </header>
   );
 }

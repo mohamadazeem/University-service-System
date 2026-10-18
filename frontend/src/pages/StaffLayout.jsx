@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { CalendarDays, MessageSquare, GraduationCap, LayoutDashboard, Files, Clock3, LoaderCircle, CircleCheck, UserRound, LogOut, Bell, PanelLeftClose, PanelLeftOpen, Menu, X, ChevronDown } from "lucide-react";
 import useAuth from "../auth/useAuth";
 import Modal from "../components/Modal";
+import NotificationBell from "../components/NotificationBell";
+import ThemeToggle from "../components/ThemeToggle";
 import "../styles/staff.css";
 const links = [
   ["Dashboard", "/staff", LayoutDashboard],
@@ -13,6 +15,7 @@ const links = [
   ["Manage Time Slots", "/staff/appointments", CalendarDays],
   ["Bookings", "/staff/bookings", CalendarDays],
   ["My Assigned Complaints", "/staff/complaints", MessageSquare],
+  ["Notifications", "/staff/notifications", Bell],
 ];
 export default function StaffLayout() {
   const { user, logout } = useAuth();
@@ -43,6 +46,6 @@ export default function StaffLayout() {
   return <div className={`staff-shell ${collapsed ? "staff-collapsed" : ""}`}>
     <aside className="staff-sidebar">{navigation}<button className="staff-collapse" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? <PanelLeftOpen size={19} /> : <><PanelLeftClose size={19} /><span>Collapse sidebar</span></>}</button></aside>
     {mobileOpen && <Modal title="Staff navigation" onClose={() => setMobileOpen(false)}><div className="staff-mobile-navigation">{navigation}</div></Modal>}
-    <div className="staff-workspace"><header className="staff-topbar"><div className="staff-breadcrumb"><button className="secondary staff-mobile-toggle" aria-label="Open navigation" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><span>Workspace</span><span>/</span><strong>{title}</strong></div><div className="staff-header-actions"><Link to="/staff/notifications" className="staff-notification" aria-label="Notifications"><Bell size={20} /></Link><div className="staff-account"><button className="staff-account-trigger" aria-expanded={accountOpen} aria-label="Account menu" onClick={() => setAccountOpen(!accountOpen)}><span className="avatar">{initials}</span><span className="staff-account-name">{user.name}<small>Staff / Lecturer</small></span>{accountOpen ? <X size={14} /> : <ChevronDown size={14} />}</button>{accountOpen && <><button className="staff-account-dismiss" aria-label="Close account menu" onClick={() => setAccountOpen(false)} /><div className="staff-account-menu"><Link to="/staff/profile" onClick={() => setAccountOpen(false)}><UserRound size={16} />My account</Link><button onClick={signOut}><LogOut size={16} />Logout</button></div></>}</div></div></header><div className="staff-content"><Outlet /></div><footer className="staff-footer">University Service System <span>Staff workspace · Assigned requests</span></footer></div>
+    <div className="staff-workspace"><header className="staff-topbar"><div className="staff-breadcrumb"><button className="secondary staff-mobile-toggle" aria-label="Open navigation" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><span>Workspace</span><span>/</span><strong>{title}</strong></div><div className="staff-header-actions"><NotificationBell /><ThemeToggle /><div className="staff-account"><button className="staff-account-trigger" aria-expanded={accountOpen} aria-label="Account menu" onClick={() => setAccountOpen(!accountOpen)}><span className="avatar">{initials}</span><span className="staff-account-name">{user.name}<small>Staff / Lecturer</small></span>{accountOpen ? <X size={14} /> : <ChevronDown size={14} />}</button>{accountOpen && <><button className="staff-account-dismiss" aria-label="Close account menu" onClick={() => setAccountOpen(false)} /><div className="staff-account-menu"><Link to="/staff/profile" onClick={() => setAccountOpen(false)}><UserRound size={16} />My account</Link><button onClick={signOut}><LogOut size={16} />Logout</button></div></>}</div></div></header><div className="staff-content"><Outlet /></div><footer className="staff-footer">University Service System <span>Staff workspace · Assigned requests</span></footer></div>
   </div>;
 }

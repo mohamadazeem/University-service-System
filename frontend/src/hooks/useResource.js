@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api, { errorMessage } from "../api/client";
 export default function useResource(url) {
   const [version, setVersion] = useState(0);
   const [result, setResult] = useState({ key: "", data: null, error: "" });
   const key = `${url}:${version}`;
+  const reload = useCallback(() => setVersion((value) => value + 1), []);
   useEffect(() => {
     if (!url) return;
     const controller = new AbortController();
@@ -22,6 +23,6 @@ export default function useResource(url) {
     data: result.data,
     loading: result.key !== key,
     error: result.key === key ? result.error : "",
-    reload: () => setVersion((value) => value + 1),
+    reload,
   };
 }

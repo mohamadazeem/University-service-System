@@ -1,0 +1,110 @@
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const { randomUUID } = require("node:crypto");
+require("dotenv").config({ quiet: true });
+const mongoose = require("mongoose"), jwt = require("jsonwebtoken"), bcrypt = require("bcryptjs");
+const User = require("../models/user"), Request = require("../models/Request"), Service = require("../models/service");
+const Appointment = require("../models/Appointment"), Slot = require("../models/AppointmentSlot"), Complaint = require("../models/Complaint"), Notification = require("../models/Notification");
+
+test("notifications: real business events, role ownership, filters, reads, relogin and failed operations", { timeout: 300000 }, async () => {
+  const prefix = "notification-it-" + randomUUID().slice(0, 20), password = randomUUID() + "Aa1!";
+  const owned = { users: [], requests: [], slots: [], complaints: [], services: [] };
+  let server;
+  try {
+    await require("../config/db")();
+    await Promise.all([User, Request, Service, Appointment, Slot, Complaint, Notification].map(Model => Model.init()));
+    const hash = await bcrypt.hash(password, 12);
+    const account = async role => {
+      const user = await User.create({ name: prefix + role, email: prefix + role + "@example.test", password: hash, role, ...(role === "staff" && { approvalStatus: "approved" }), ...(role === "student" && { studentId: prefix }) });
+      owned.users.push(user._id);
+      return { user, token: jwt.sign({ id: String(user._id) }, process.env.JWT_SECRET) };
+    };
+    const admin = await account("admin"), staff = await account("staff"), student = await account("student");
+    const service = await Service.create({ name: prefix, nameKey: prefix, department: "Notification Integration", description: "Temporary notification fixture" }); owned.services.push(service._id);
+    server = require("../app").listen(0, "127.0.0.1"); await new Promise(resolve => server.once("listening", resolve));
+    const call = async (path, actor, method = "GET", body) => {
+      const r = await fetch(`http://127.0.0.1:${server.address().port}/api${path}`, { method, headers: { "Content-Type": "application/json", ...(actor && { Authorization: "Bearer " + actor.token }) }, ...(body !== undefined && { body: JSON.stringify(body) }) });
+      return { code: r.status, ...await r.json() };
+    };
+    const inbox = actor => call("/notifications?limit=100", actor);
+    assert.equal((await call("/notifications/unread-count")).code, 401);
+    assert.equal((await call("/notifications/read-all", null, "PATCH")).code, 401);
+    const submitted = await call("/requests", student, "POST", { serviceId: String(service._id), studentId: prefix, description: "Please process my request" });
+    assert.equal(submitted.code, 201); const request = submitted.request; owned.requests.push(request._id);
+    const source = await Request.findById(request._id).select("+notificationEvents");
+    assert.ok(source.notificationEvents.some(event => event.audience === "admin-review"));
+    const assigned = await call("/admin/requests/" + request._id, admin, "PATCH", { assignedStaff: String(staff.user._id), expectedUpdatedAt: request.updatedAt });
+    assert.equal(assigned.code, 200);
+    let staffInbox = await inbox(staff);
+    assert.ok(staffInbox.items.some(item => item.title === "New request assignment" && item.entityId === request._id));
+    assert.equal((await call("/staff/requests/" + request._id, staff, "PATCH", { status: "Processing", expectedStatus: "Pending", expectedUpdatedAt: assigned.request.updatedAt, staffComment: "We are processing your request." })).code, 200);
+    let studentInbox = await inbox(student);
+    assert.ok(studentInbox.items.some(item => item.message.includes("Processing")));
+    const before = studentInbox.total;
+    assert.equal((await call("/staff/requests/" + request._id, staff, "PATCH", { status: "Rejected", expectedStatus: "Pending" })).code, 409);
+    assert.equal((await inbox(student)).total, before);
+    const currentRequest = await Request.findById(request._id);
+    assert.equal((await call("/admin/requests/" + request._id, admin, "PATCH", { priority: "Urgent", expectedUpdatedAt: currentRequest.updatedAt.toISOString() })).code, 200);
+    assert.ok((await inbox(staff)).items.some(item => item.message === "An administrator updated your assigned service request."));
+    const start = new Date(Date.now() + 10 * 86400000);
+    const created = await call("/staff/appointment-slots", staff, "POST", { service: String(service._id), title: prefix, description: "Notification consultation", startsAt: start.toISOString(), endsAt: new Date(+start + 3600000).toISOString(), capacity: 1, building: "Services", room: "101", status: "Published" });
+    assert.equal(created.code, 201); owned.slots.push(created.slot._id);
+    const booked = await call("/appointments", student, "POST", { slot: created.slot._id, reason: "Appointment notification test" });
+    assert.equal(booked.code, 201);
+    staffInbox = await inbox(staff);
+    assert.ok(staffInbox.items.some(item => item.title === "New appointment booking"));
+    const booking = await Appointment.findById(booked.appointment._id);
+    assert.equal((await call("/admin/appointments/" + booking._id, admin, "PATCH", { status: "Approved", expectedStatus: "Pending", expectedUpdatedAt: booking.updatedAt.toISOString() })).code, 200);
+    assert.ok((await inbox(student)).items.some(item => item.message === "Appointment status: Approved."));
+    const complaint = await call("/complaints", student, "POST", { subject: prefix, description: "Please review this concern" });
+    assert.equal(complaint.code, 201); owned.complaints.push(complaint.complaint._id);
+    const complaintRecord = await Complaint.findById(complaint.complaint._id);
+    const assignedComplaint = await call("/admin/complaints/" + complaintRecord._id + "/assignment", admin, "PATCH", { assignedStaff: String(staff.user._id), expectedUpdatedAt: complaintRecord.updatedAt.toISOString() });
+    assert.equal(assignedComplaint.code, 200);
+    assert.ok((await inbox(staff)).items.some(item => item.title === "New complaint assignment"));
+    assert.equal((await call("/admin/complaints/" + complaintRecord._id, admin, "PATCH", { status: "Resolved", expectedStatus: "In Progress", expectedUpdatedAt: assignedComplaint.item.updatedAt, response: "The concern has been resolved." })).code, 200);
+    assert.ok((await inbox(student)).items.some(item => item.message === "Complaint status: Resolved."));
+    const pendingEmail = prefix + "pending@example.test";
+    assert.equal((await call("/auth/staff/register", null, "POST", { name: prefix, email: pendingEmail, password, staffId: prefix })).code, 201);
+    const pending = await User.findOne({ email: pendingEmail }).select("+notificationEvents"); owned.users.push(pending._id);
+    assert.ok(pending.notificationEvents.some(event => event.audience === "admin-review"));
+    assert.equal((await call("/admin/staff-registrations/" + pending._id, admin, "PATCH", { approvalStatus: "approved", expectedStatus: "pending", expectedUpdatedAt: pending.updatedAt.toISOString() })).code, 200);
+    const approvedActor = { token: jwt.sign({ id: String(pending._id) }, process.env.JWT_SECRET) };
+    assert.ok((await inbox(approvedActor)).items.some(item => item.message.includes("registration was approved")));
+    // Admin inbox fixtures stay scoped to this test; no real review-queue inbox is drained.
+    await Notification.create({ user: admin.user._id, title: "Admin test", message: prefix, type: "general" });
+    const queueOwner = await User.findOne({ role: "admin", active: { $ne: false } }).sort({ _id: 1 });
+    if (String(queueOwner._id) !== String(admin.user._id)) assert.ok((await inbox(admin)).items.every(item => item.message === prefix));
+    studentInbox = await inbox(student);
+    assert.equal(studentInbox.unread, studentInbox.total);
+    assert.ok(studentInbox.items.every(item => !item.eventKey && !item.user && item.createdAt));
+    const id = studentInbox.items[0]._id;
+    assert.equal((await call(`/notifications/${id}/read`, staff, "PATCH")).code, 404);
+    assert.equal((await call("/notifications/not-an-id/read", student, "PATCH")).code, 400);
+    assert.equal((await call(`/notifications/${id}/read`, student, "PATCH", { user: String(staff.user._id) })).code, 200);
+    assert.ok((await Notification.findById(id)).readAt);
+    assert.equal((await call("/notifications/unread-count", student)).unread, studentInbox.unread - 1);
+    assert.equal((await call("/notifications?read=read", student)).total, 1);
+    assert.ok((await call("/notifications?type=appointment", student)).items.every(item => item.type === "appointment"));
+    const login = await call("/auth/login", null, "POST", { email: student.user.email, password, portal: "student" });
+    assert.equal(login.code, 200);
+    assert.equal((await call("/notifications/unread-count", { token: login.token })).unread, studentInbox.unread - 1);
+    const staffCount = (await call("/notifications/unread-count", staff)).unread;
+    assert.equal((await call("/notifications/read-all", student, "PATCH", { user: String(staff.user._id) })).code, 200);
+    assert.equal((await call("/notifications/unread-count", student)).unread, 0);
+    assert.equal((await call("/notifications/unread-count", staff)).unread, staffCount);
+    assert.equal((await call("/notifications?user=" + staff.user._id, student)).total, studentInbox.total);
+  } finally {
+    if (server) await new Promise(resolve => server.close(resolve));
+    if (mongoose.connection.readyState === 1) {
+      await Appointment.deleteMany({ slot: { $in: owned.slots } });
+      await Slot.deleteMany({ _id: { $in: owned.slots } });
+      await Complaint.deleteMany({ _id: { $in: owned.complaints } });
+      await Request.deleteMany({ _id: { $in: owned.requests } });
+      await Notification.deleteMany({ user: { $in: owned.users } });
+      await User.deleteMany({ _id: { $in: owned.users } });
+      await Service.deleteMany({ _id: { $in: owned.services } });
+    }
+    await mongoose.disconnect();
+  }
+});

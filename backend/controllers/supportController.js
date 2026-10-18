@@ -1,17 +1,7 @@
 const Appointment = require("../models/Appointment");
-const Slot = require("../models/AppointmentSlot");
 const Complaint = require("../models/Complaint");
-const Notification = require("../models/Notification");
 const User = require("../models/user");
-const Request = require("../models/Request");
 const v = require("../utils/validation");
-const {
-  event
-} = require("../utils/notificationEvent");
-const {
-  flush,
-  tryFlush
-} = require("../utils/notifications");
 const { appointments, complaints, priorities, categories } = require("../utils/supportWorkflow");
 // Appointment ownership is separate from the assignment-scoped complaint controller.
 // Student routes always enforce ownership, irrespective of client filters.
@@ -85,38 +75,7 @@ exports.review = Model => async (req, res) => {
   if (Model === Appointment) return scheduling.review(req, res);
   return require("./complaintController").review(req, res);
 };
-exports.notifications = async (req, res) => {
-  for (const Model of [Appointment, Complaint, Request]) await flush(Model, req.user.id);
-  const p = v.paging(req.query, ["createdAt"]);
-  const filter = {
-    user: req.user.id
-  };
-  const [items, total, unread] = await Promise.all([Notification.find(filter).sort(p.sort).skip(p.skip).limit(p.limit), Notification.countDocuments(filter), Notification.countDocuments({
-    ...filter,
-    isRead: false
-  })]);
-  res.json({
-    items,
-    total,
-    unread,
-    pages: Math.ceil(total / p.limit)
-  });
-};
-exports.readNotification = async (req, res) => {
-  const item = await Notification.findOneAndUpdate({
-    _id: v.id(req.params.id),
-    user: req.user.id
-  }, {
-    $set: {
-      isRead: true
-    }
-  }, {
-    returnDocument: "after"
-  });
-  if (!item) v.fail("Notification not found", 404);
-  res.json({
-    item
-  });
-};
+exports.notifications = require("./notificationController").list;
+exports.readNotification = require("./notificationController").read;
 exports.Appointment = Appointment;
 exports.Complaint = Complaint;

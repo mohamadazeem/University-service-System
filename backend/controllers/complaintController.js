@@ -94,7 +94,7 @@ exports.submit = async (req, res) => {
     category: req.body.category === undefined ? "General" : v.choice(req.body.category, categories, "category"),
     priority: req.body.priority === undefined ? "Medium" : v.choice(req.body.priority, priorities, "priority"),
     department: await department(req.body.department), assignedStaff: null,
-    notificationEvents: [event(req.user.id, "Your complaint has been received for review.")],
+    notificationEvents: [event(req.user.id, "Your complaint has been received for review."), require("../utils/notificationEvent").adminEvent("A new complaint requires review.", { title: "Complaint awaiting review" })],
   });
   await tryFlush(Complaint, req.user.id);
   res.status(201).json({ complaint: { _id: item._id, status: item.status } });
@@ -123,7 +123,7 @@ exports.assign = async (req, res) => {
     $push: {
       assignmentHistory: { from: record.assignedStaff || null, to: selected, administrator: req.user.id, at },
       history: { $each: [...(!record.history?.length && record.response ? [{ kind: "update", status: record.status, response: record.response, actorName: "Previous university response", actorRole: "support", at: record.updatedAt }] : []), { kind: "assignment", status, assignedStaffName: staff?.name || "Unassigned", actor: req.user.id, actorName: req.user.name, actorRole: "admin", at }] },
-      notificationEvents: event(record.student, selected ? "Your complaint has been assigned to university staff for investigation." : "Your complaint is awaiting reassignment by an administrator."),
+      notificationEvents: { $each: [event(record.student, selected ? "Your complaint has been assigned to university staff for investigation." : "Your complaint is awaiting reassignment by an administrator."), ...(selected ? [event(selected, "A complaint has been assigned to you.", { title: "New complaint assignment" })] : []), ...(record.assignedStaff ? [event(record.assignedStaff, "Your complaint assignment has changed.")] : [])] },
     },
   }, { returnDocument: "after", runValidators: true }).populate(populate);
   if (!updated) v.fail("This complaint changed. Reload its details.", 409);
@@ -148,7 +148,7 @@ exports.review = async (req, res) => {
   const updated = await Complaint.findOneAndUpdate({ _id: record._id, ...scope(req.user), status: expectedStatus, ...(record.updatedAt && { updatedAt: record.updatedAt }) }, {
     $set: values, $push: {
       history: { $each: [...previous, { kind: "update", status, response, priority: values.priority || record.priority || "Medium", investigationNotes: values.investigationNotes, actor: req.user.id, actorName: req.user.name, actorRole: req.user.role, at: new Date() }] },
-      notificationEvents: event(record.student, `Complaint status: ${status}.`),
+      notificationEvents: { $each: [event(record.student, `Complaint status: ${status}.`), ...(req.user.role === "admin" && record.assignedStaff ? [event(record.assignedStaff, "An administrator updated your assigned complaint. Review its priority and response.")] : [])] },
     },
   }, { returnDocument: "after", runValidators: true }).populate(populate);
   if (!updated) v.fail("This complaint changed. Reload its details.", 409);

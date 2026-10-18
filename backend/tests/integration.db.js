@@ -332,7 +332,8 @@ test(
       assert.equal(inbox.status, 200);
       assert.equal(inbox.items.length, 9);
       assert.equal(inbox.unread, 9);
-      assert.ok(inbox.items.every(row => row.user === register.user.id));
+      assert.ok(inbox.items.every(row => row.user === undefined && row.eventKey === undefined));
+      assert.equal(await Notification.countDocuments({ _id: { $in: inbox.items.map(row => row._id) }, user: register.user.id }), inbox.items.length);
       const notificationId = inbox.items[0]._id;
       assert.equal((await call(`/notifications/${notificationId}/read`, "PATCH", undefined, adminToken)).status, 404);
       assert.equal((await call(`/notifications/${notificationId}/read`, "PATCH", undefined, studentToken)).status, 200);

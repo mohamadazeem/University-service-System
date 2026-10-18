@@ -161,7 +161,7 @@ exports.update = async (req, res) => {
         filter: { _id: booking._id }, update: {
           $set: { status: "Cancelled", activeReservation: false }, $unset: { reservedSlot: 1 },
           $push: {
-            notificationEvents: event(booking.student, "Your appointment was cancelled because the availability was cancelled."),
+            notificationEvents: { $each: [event(booking.student, "Your appointment was cancelled because the availability was cancelled."), event(slot.staff, "An appointment booking was cancelled with its availability.")] },
             history: { status: "Cancelled", actor: req.user.id, at: new Date() },
           },
         },
@@ -183,7 +183,7 @@ exports.update = async (req, res) => {
       Object.assign(slot, values);
       const active = bookings.filter(item => ["Pending", "Approved"].includes(item.status));
       if (active.length) await Appointment.bulkWrite(active.map(booking => ({ updateOne: {
-        filter: { _id: booking._id }, update: { $push: { notificationEvents: event(booking.student, "Your appointment details changed. Check the updated location and instructions in My Appointments.") } },
+        filter: { _id: booking._id }, update: { $push: { notificationEvents: { $each: [event(booking.student, "Your appointment details changed. Check the updated location and instructions in My Appointments."), event(slot.staff, "Appointment location or instructions changed. Review the updated booking.")] } } },
       } })), { session });
       affected.push(...active.map(booking => String(booking.student)));
     }
@@ -220,7 +220,7 @@ exports.book = async (req, res) => {
       student: req.user.id, slot: slot._id, ...(capacity(slot) === 1 && { reservedSlot: slot._id }), activeReservation: true,
       staff: slot.staff, date: slot.startsAt, time: slot.startsAt.toISOString().slice(11,16), reason,
       history: [{ status: "Pending", actor: req.user.id, at: new Date() }],
-      notificationEvents: [event(req.user.id, "Your appointment booking is pending approval.")],
+      notificationEvents: [event(req.user.id, "Your appointment booking is pending approval."), event(slot.staff, "A student booked an appointment with you.", { title: "New appointment booking" }), require("../utils/notificationEvent").adminEvent("An appointment booking is awaiting review.", { title: "Appointment review required" })],
     }], { session }))[0];
   });
   await tryFlush(Appointment, req.user.id);
@@ -248,7 +248,7 @@ exports.review = async (req, res) => {
     item.status = status;
     if (["Rejected", "Cancelled"].includes(status)) { item.reservedSlot = undefined; item.activeReservation = false; }
     item.history.push({ status, actor: req.user.id, at: new Date() });
-    item.notificationEvents = [...(item.notificationEvents || []), event(item.student, `Appointment status: ${status}.`)];
+    item.notificationEvents = [...(item.notificationEvents || []), event(item.student, `Appointment status: ${status}.`), ...(item.staff ? [event(item.staff, `An appointment booking changed to ${status}.`)] : [])];
     await item.save({ session }); return item;
   });
   await tryFlush(Appointment, String(booking.student));
