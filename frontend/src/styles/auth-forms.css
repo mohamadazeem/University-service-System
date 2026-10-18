@@ -1,0 +1,64 @@
+/* Right-hand authentication content; campus artwork and branding retain their styles. */
+.auth-shell .registration-panel,
+.auth-shell .unified-login-page .login-content { padding: 20px clamp(20px, 3vw, 48px) 24px; }
+.auth-shell .registration-top,
+.auth-shell .unified-login-page .login-panel-header { width: 100%; max-width: 560px; margin: 0 auto 20px; min-height: 36px; justify-content: space-between; align-items: center; }
+.auth-shell .registration-back { font-size: 13px; color: var(--muted); }
+.auth-shell .login-nav { gap: 16px; }
+.auth-shell .registration-content,
+.auth-shell .staff-registration-page .registration-content,
+.auth-shell .unified-login-page .portal-login-card { width: 100%; max-width: 560px; margin: auto; }
+.auth-shell .registration-panel { display: flex; flex-direction: column; }
+.auth-shell .registration-content .eyebrow,
+.auth-shell .unified-login-page .login-welcome .eyebrow { color: var(--link); font-size: 11px; font-weight: 700; letter-spacing: 2px; margin: 0 0 8px; }
+.auth-shell .registration-content h1,
+.auth-shell .unified-login-page .login-welcome h1 { font-size: clamp(26px, 2.2vw, 34px); line-height: 1.18; letter-spacing: -.9px; margin: 0 0 10px; }
+.auth-shell .registration-intro,
+.auth-shell .unified-login-page .login-welcome .login-intro { font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
+.auth-shell .unified-login-page .login-welcome { margin-bottom: 0; }
+.auth-shell .registration-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.auth-shell .registration-password { grid-column: auto; min-width: 0; }
+.auth-shell .registration-fields label,
+.auth-shell .portal-login-card label { font-size: 13px; font-weight: 600; }
+.auth-shell .registration-input { margin-top: 6px; }
+.auth-shell .registration-input input,
+.auth-shell .unified-login-page .login-icon-field input { min-height: 44px; height: 44px; font-size: 14px; padding: 10px 40px; border-radius: 8px; }
+.auth-shell .registration-input > svg,
+.auth-shell .unified-login-page .login-icon-field > svg { width: 18px; height: 18px; left: 13px; }
+.auth-shell .registration-visibility,
+.auth-shell .unified-login-page .password-toggle { width: 36px; min-width: 36px; height: 36px; padding: 8px; top: 4px; right: 4px; }
+.auth-shell .registration-password-help { font-size: 11px; line-height: 1.5; color: var(--muted); margin: 8px 0 0; }
+.auth-shell .unified-login-page .login-roles { margin: 0 0 18px; padding: 3px; }
+.auth-shell .portal-login-card .login-role { min-height: 38px; padding: 7px 4px; font-size: 12px; }
+.auth-shell .unified-login-page .login-icon-field { margin-bottom: 16px; }
+.auth-shell .registration-submit,
+.auth-shell .staff-registration-page .registration-submit,
+.auth-shell .unified-login-page .portal-submit { min-height: 44px; margin-top: 16px; border-radius: 8px; font-size: 14px; font-weight: 650; }
+.auth-shell .unified-login-page .portal-submit { margin-top: 4px; }
+.auth-shell .registration-divider,
+.auth-shell .unified-login-page .login-account-help .registration-divider { margin: 18px 0 14px; font-size: 12px; gap: 12px; }
+.auth-shell .registration-signin,
+.auth-shell .unified-login-page .login-account-help { font-size: 13px; }
+.auth-shell .staff-registration-approval,
+.auth-shell .unified-login-page .login-student-note { padding: 10px 12px; margin-top: 16px; border-radius: 8px; font-size: 12px; line-height: 1.5; gap: 10px; }
+.auth-shell .unified-login-page .login-student-note > svg { width: 18px; height: 18px; padding: 0; background: transparent; }
+.auth-shell .registration-input input:focus-visible,
+.auth-shell .unified-login-page input:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+@media (min-width: 901px) and (max-height: 800px) {
+  .auth-shell .registration-panel,
+  .auth-shell .unified-login-page .login-content { padding-top: 14px; padding-bottom: 14px; }
+  .auth-shell .registration-top,
+  .auth-shell .unified-login-page .login-panel-header { margin-bottom: 14px; }
+  .auth-shell .registration-fields { gap: 12px 16px; }
+}
+@media (max-width: 900px) {
+  .auth-shell .registration-content,
+  .auth-shell .staff-registration-page .registration-content,
+  .auth-shell .unified-login-page .portal-login-card { margin: 0 auto; }
+}
+@media (max-width: 760px) {
+  .auth-shell .registration-fields { grid-template-columns: 1fr; }
+  .auth-shell .registration-panel,
+  .auth-shell .unified-login-page .login-content { padding: 22px 20px 30px; }
+  .auth-shell .portal-login-card .login-role { font-size: 11px; gap: 4px; }
+}

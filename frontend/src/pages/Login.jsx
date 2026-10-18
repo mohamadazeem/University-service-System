@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight, CalendarDays, Eye, EyeOff, FileText, GraduationCap, Headphones, Info, LockKeyhole, Mail, UsersRound, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Eye, EyeOff, FileText, GraduationCap, Headphones, Info, LockKeyhole, Mail, UsersRound, ShieldCheck } from "lucide-react";
 import useAuth from "../auth/useAuth";
 import { errorMessage } from "../api/client";
 import ThemeToggle from "../components/ThemeToggle";
@@ -67,6 +67,7 @@ export default function Login() {
       </aside>
       <main className="login-content">
         <header className="login-panel-header">
+        <Link className="registration-back" to="/"><ArrowLeft size={18} aria-hidden="true" />Home</Link>
         <nav className="login-nav" aria-label="Main navigation">
           <Link to="/services">Services</Link>
           {user && roles[user.role] && <Link to={roles[user.role].dashboard}>My dashboard</Link>}
@@ -74,7 +75,7 @@ export default function Login() {
         </nav>
         </header>
         <section className="auth-card portal-login-card" aria-labelledby="login-title">
-          <div className="login-welcome"><p className="eyebrow">WELCOME BACK</p><h1 id="login-title">Sign in to <br />University Services</h1><p className="login-intro">Access your account to manage your requests, appointments and more.</p></div>
+          <div className="login-welcome"><p className="eyebrow">WELCOME BACK</p><h1 id="login-title">Sign in to University Services</h1><p className="login-intro">Access your account to manage your requests, appointments and more.</p></div>
           {location.state?.sessionRequired && <p className="notice" role="status">Please sign in to continue. Your session may have expired.</p>}
           <form onSubmit={submit} aria-busy={busy}>
             <fieldset disabled={busy}>
@@ -101,13 +102,13 @@ export default function Login() {
             </fieldset>
           </form>
           <div className="login-account-help">
-            {role !== "admin" && <div className="registration-divider"><span>or</span></div>}
+            <div className="registration-divider"><span>or</span></div>
             {role === "student" && <><p>Don't have an account? <Link to="/register">Create an account</Link></p><div className="login-student-note"><Info size={24} aria-hidden="true" /><p>This portal is for students to access and manage university services.</p></div></>}
             {role === "staff" && <>
               <p>New staff member? <Link to="/staff/register">Register for approval</Link></p>
-              <p className="login-role-note">Staff accounts require administrator approval before signing in.</p>
+              <div className="login-student-note"><Info size={18} aria-hidden="true" /><p>Staff accounts require administrator approval before signing in.</p></div>
             </>}
-            {role === "admin" && <p className="login-role-note">Administrators must use authorized existing accounts.</p>}
+            {role === "admin" && <div className="login-student-note"><Info size={18} aria-hidden="true" /><p>Administrators must use authorized existing accounts.</p></div>}
           </div>
         </section>
       </main>

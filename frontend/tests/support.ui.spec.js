@@ -274,13 +274,18 @@ test("theme toggle remains usable with blocked storage and reduced motion", asyn
   expect(errors).toEqual([]);
 });
 
-test("public footer has only working quick links, fits all sizes and stays outside workspaces", async ({ page }) => {
+test("public footer has working links and stays outside authentication pages and workspaces", async ({ page }) => {
   await page.route("**/api/services", route => route.fulfill({ json: { services: [] } }));
   const footer = page.locator(".site-footer");
   for (const width of [1440, 820, 390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const path of ["/", "/services", "/student/login", "/staff/login", "/admin/login", "/register", "/staff/register", "/missing-page"]) {
       await page.goto(path);
+      if (["/login", "/student/login", "/staff/login", "/admin/login", "/register", "/staff/register"].includes(path)) {
+        await expect(footer).toHaveCount(0);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        continue;
+      }
       await expect(footer).toHaveCount(1);
       await expect(footer.locator("a")).toHaveCount(2);
       await expect(footer.getByRole("link", { name: "Home", exact: true })).toHaveAttribute("href", "/");
