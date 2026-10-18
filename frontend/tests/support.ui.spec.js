@@ -232,7 +232,7 @@ test("saved dark theme covers student and administrator panels and dialogs", asy
   await page.route("**/api/services", route => route.fulfill({ json: { services: [] } }));
   await page.route("**/api/requests/my", route => route.fulfill({ json: { requests: [] } }));
   await page.goto("/dashboard");
-  await expect(page.locator(".metric-card").first()).toHaveCSS("background-color", "rgb(21, 34, 53)");
+  await expect(page.locator(".dashboard-stat").first()).toHaveCSS("background-color", "rgb(21, 34, 53)");
   await page.screenshot({ path: "test-results/student-dashboard-dark.png", fullPage: true });
   await page.unroute("**/api/auth/me");
   await page.route("**/api/auth/me", route => route.fulfill({ json: { user: admin } }));
@@ -405,4 +405,51 @@ test("staff registration is responsive and checks confirmation before requesting
   await page.getByLabel("Confirm password", { exact: true }).fill("Password123!");
   await page.getByRole("button", { name: "Create staff account" }).click();
   await expect(page.getByRole("status")).toContainText("wait for administrator approval"); expect(writes).toBe(1);
+});
+
+test("student dashboard uses live API contracts, books slots, opens notifications and fits all screens", async ({ page }) => {
+  test.setTimeout(60000);
+  await session(page, student);
+  const request = { _id: "555555555555555555555555", service: "Academic records", status: "Pending", createdAt: "2026-10-17T09:00:00Z" };
+  let read = false, booked = false;
+  await page.route("**/api/services", route => route.fulfill({ json: { services: [{ _id: "service", name: "Academic records" }] } }));
+  await page.route("**/api/requests/my", route => route.fulfill({ json: { requests: [request, { ...request, _id: "completed", status: "Completed" }] } }));
+  await page.route("**/api/appointments/availability**", route => route.fulfill({ json: { items: booked ? [] : [{ ...slot, serviceName: "Student advice", location: "Student Centre" }], total: booked ? 0 : 1, pages: 1 } }));
+  await page.route("**/api/notifications?**", route => route.fulfill({ json: { items: [{ _id: request._id, title: "Request updated", message: "Your academic records request is being reviewed.", type: "request", entityId: request._id, isRead: read, createdAt: request.createdAt }], unread: read ? 0 : 1, total: 1, pages: 1 } }));
+  await page.route("**/api/notifications/*/read", route => { read = true; return route.fulfill({ json: { message: "Read" } }); });
+  await page.route("**/api/notifications/*/related", route => route.fulfill({ json: { type: "request", item: request } }));
+  await page.route(/\/api\/appointments$/, route => { expect(route.request().postDataJSON()).toEqual({ slot: slot._id, reason: "Academic advice" }); booked = true; return route.fulfill({ json: { message: "Appointment booked successfully." } }); });
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Welcome, UI Student" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Available services: 1", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "My requests: 2", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Pending requests: 1", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Completed requests: 1", exact: true })).toBeVisible();
+  await expect(page.locator('.site-header nav a[href="/dashboard"]')).toHaveAttribute("aria-current", "page");
+  for (const [width, height] of [[1366,768],[1920,1080],[768,1024],[390,844]]) {
+    await page.setViewportSize({ width, height });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
+      await expect(page.locator(".dashboard-stat").first()).toHaveCSS("background-color", theme === "dark" ? "rgb(21, 34, 53)" : "rgb(255, 255, 255)");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (width >= 1366) expect(await page.locator('.dashboard-columns').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(2);
+      await page.screenshot({ path: `test-results/dashboard-${width}-${theme}.png`, fullPage: true });
+    }
+  }
+  await page.getByRole("button", { name: "Book Appointment", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Student Centre");
+  await page.getByLabel("Reason", { exact: true }).fill("Academic advice");
+  await page.getByRole("button", { name: "Confirm booking", exact: true }).click();
+  await expect(page.locator(".appointment-discovery .notice-success")).toHaveText("Appointment booked successfully.");
+  expect(booked).toBe(true);
+  await expect(page.getByText("No published appointments with available spaces match this view.")).toBeVisible();
+  await page.locator('.dashboard-notifications').getByRole("link", { name: "Request updated" }).click();
+  await expect(page).toHaveURL(/\/my-requests\?notification=/);
+  expect(read).toBe(true);
+  await expect(page.getByRole("dialog", { name: "Service request details" })).toBeVisible();
+  await page.goto("/dashboard");
+  await expect(page.locator('.dashboard-notifications .notification-state')).toHaveText("Read");
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
 });
