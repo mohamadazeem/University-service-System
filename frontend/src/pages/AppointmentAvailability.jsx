@@ -9,32 +9,57 @@ import { Badge, LoadingError, Notice, Pagination } from "../admin/AdminUI";
 import { appointmentDateTime, appointmentFields, appointmentInstant } from "../utils/appointmentTime";
 import "../styles/appointments.css";
 
-function AvailabilityForm({ slot, admin, base, onClose, onSaved }) {
+function AvailabilityForm({ slot, base, onClose, onSaved }) {
   const services = useResource("/services");
-  const staff = useResource(admin ? "/admin/staff" : null);
   const start = appointmentFields(slot?.startsAt), end = appointmentFields(slot?.endsAt);
-  const [category, setCategory] = useState(slot?.category || "");
-  const [form, setForm] = useState({ staff: slot?.staff?._id || "", service: slot?.service?._id || "", title: slot?.title || "", description: slot?.description || "", date: start.date, start: start.time, end: end.time, building: slot?.building || "", room: slot?.room || "", capacity: slot?.capacity || 1, durationMinutes: slot?.durationMinutes || "", instructions: slot?.instructions || "", status: slot?.status === "Draft" ? "Draft" : "Published" });
+  const originalLocation = slot?.location || [slot?.building, slot?.room].filter(Boolean).join(" / ");
+  const [form, setForm] = useState({ service: slot?.service?._id || slot?.service || "", title: slot?.title || "", date: start.date, start: start.time, end: end.time, location: originalLocation });
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const lock = useRef(false);
-  const change = event => setForm({ ...form, [event.target.name]: event.target.value });
+  const lock = useRef(false), booked = slot?.booked > 0;
+  const change = event => { setForm({ ...form, [event.target.name]: event.target.value }); setError(""); };
   const save = async event => {
     event.preventDefault(); if (lock.current) return;
-    lock.current = true; setBusy(true); setError("");
-    try {
-      const body = { service: form.service, title: form.title, description: form.description, startsAt: appointmentInstant(form.date, form.start), endsAt: appointmentInstant(form.date, form.end), building: form.building, room: form.room, capacity: Number(form.capacity), instructions: form.instructions, status: form.status, ...(form.durationMinutes && { durationMinutes: Number(form.durationMinutes) }), ...(admin && !slot && { staff: form.staff }) };
-      if (slot?.booked > 0) {
-        for (const key of ["service", "startsAt", "endsAt", "capacity", "status"]) delete body[key];
+    setError("");
+    const status = event.nativeEvent.submitter?.value || slot?.status || "Published";
+    let startsAt, endsAt;
+    if (!booked) {
+      try {
+        startsAt = slot && form.date === start.date && form.start === start.time ? slot.startsAt : appointmentInstant(form.date, form.start);
+        endsAt = slot && form.date === end.date && form.end === end.time ? slot.endsAt : appointmentInstant(form.date, form.end);
       }
-      if (slot) body.expectedUpdatedAt = slot.updatedAt;
-      const { data } = slot ? await api.patch(`${base}/${slot._id}`, body) : await api.post(base, body);
+      catch { setError("Choose a valid appointment date and time."); return; }
+      if (new Date(startsAt) <= new Date()) { setError("Choose a future appointment date and start time."); return; }
+      if (endsAt <= startsAt) { setError("End time must be later than start time."); return; }
+      if (new Date(endsAt) - new Date(startsAt) > 8 * 3600000) { setError("Appointment slots cannot exceed 8 hours."); return; }
+    }
+    lock.current = true; setBusy(true);
+    try {
+      // Omit hidden fields on edits so historical metadata and capacity survive.
+      const body = { title: form.title.trim(), ...(!booked && { service: form.service, startsAt, endsAt, status }), ...((!slot || form.location !== originalLocation) && { location: form.location.trim() }), ...(slot && { expectedUpdatedAt: slot.updatedAt }) };
+      const { data } = slot ? await api.patch(base + "/" + slot._id, body) : await api.post(base, body);
       onSaved(data.message);
     } catch (err) { setError(errorMessage(err)); }
     finally { lock.current = false; setBusy(false); }
   };
   const all = services.data?.services || [];
-  const categories = [...new Set(all.map(service => service.department))].sort();
-  return <Modal title={slot ? "Edit availability" : "Create Availability"} onClose={onClose} busy={busy}><p className="muted">All dates and times use Sri Lanka time (Asia/Colombo). Each student reserves one space in this appointment window.</p>{slot?.booked > 0 && <Notice>Students have booked this availability. Schedule, service, capacity and publication changes are protected. Use cancellation and create a replacement if needed.</Notice>}<LoadingError resource={services} />{admin && <LoadingError resource={staff} />}<form onSubmit={save}><Notice error>{error}</Notice><fieldset disabled={busy}><div className="form-grid">{admin && !slot && <label>Staff member<select aria-label="Staff member" name="staff" value={form.staff} onChange={change} required><option value="">Select approved staff</option>{staff.data?.staff.map(user => <option key={user._id} value={user._id}>{user.name}</option>)}</select></label>}<label>Service category<select aria-label="Service category" value={category} required={!slot?.booked} disabled={slot?.booked > 0} onChange={event => { setCategory(event.target.value); setForm({ ...form, service: "" }); }}><option value="">Select category</option>{categories.map(value => <option key={value}>{value}</option>)}</select></label><label>University service<select aria-label="University service" name="service" value={form.service} onChange={change} required disabled={slot?.booked > 0}><option value="">Select service</option>{all.filter(service => !category || service.department === category).map(service => <option key={service._id} value={service._id}>{service.name}</option>)}</select></label></div><label>Appointment title<input name="title" value={form.title} onChange={change} required maxLength={160} /></label><label>Description / purpose<textarea aria-label="Description / purpose" name="description" value={form.description} onChange={change} required maxLength={2000} rows={3} /></label><div className="form-grid"><label>Appointment date<input type="date" name="date" value={form.date} onChange={change} required min={appointmentFields(new Date()).date} disabled={slot?.booked > 0} /></label><label>Maximum students<input type="number" name="capacity" value={form.capacity} onChange={change} min={1} max={100} required disabled={slot?.booked > 0} /></label><label>Start time<input type="time" name="start" value={form.start} onChange={change} required disabled={slot?.booked > 0} /></label><label>End time<input type="time" name="end" value={form.end} onChange={change} required disabled={slot?.booked > 0} /></label><label>Building / department<input name="building" value={form.building} onChange={change} required maxLength={120} /></label><label>Room / office<input name="room" value={form.room} onChange={change} required maxLength={120} /></label><label>Duration (minutes, optional)<input type="number" name="durationMinutes" value={form.durationMinutes} onChange={change} min={1} max={480} /></label><label>Publication<select aria-label="Publication" name="status" value={form.status} onChange={change} disabled={slot?.booked > 0}><option value="Published">Published</option><option value="Draft">Draft</option></select></label></div><label>Additional instructions<textarea aria-label="Additional instructions" name="instructions" value={form.instructions} onChange={change} maxLength={2000} rows={3} /></label><footer className="modal-actions"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button disabled={busy || services.loading || !!services.error || (admin && (staff.loading || !!staff.error))}>{busy ? "Saving..." : slot ? "Save availability" : form.status === "Draft" ? "Save draft" : "Publish availability"}</button></footer></fieldset></form></Modal>;
+  const canPublish = !slot || slot.status === "Draft";
+  const unavailable = busy || services.loading || !!services.error || (!all.length && !slot);
+  return <Modal title={slot ? "Edit availability" : "Create Availability"} onClose={onClose} busy={busy}>
+    <form className="compact-availability-form" onSubmit={save}>
+      <p className="muted">Sri Lanka time (Asia/Colombo). New slots accept one booking.</p>
+      {booked && <Notice>This slot has bookings. You can update its title and location; its service and schedule are protected.</Notice>}
+      <LoadingError resource={services} /><Notice error>{error}</Notice>
+      {!services.loading && !services.error && !all.length && !slot && <Notice>No active university services are available. Ask an administrator to add a service.</Notice>}
+      <fieldset disabled={busy}>
+        <label>Service<select aria-label="Service" name="service" value={form.service} onChange={change} required disabled={booked || services.loading || !!services.error}><option value="">Select a university service</option>{slot?.service && !all.some(service => service._id === form.service) && <option value={form.service}>{slot.serviceName || slot.service?.name || "Existing service"}</option>}{all.map(service => <option key={service._id} value={service._id}>{service.name}</option>)}</select></label>
+        <label>Appointment Title<input aria-label="Appointment Title" name="title" value={form.title} onChange={change} required maxLength={160} /></label>
+        <label>Appointment Date<input aria-label="Appointment Date" type="date" name="date" value={form.date} onChange={change} required min={appointmentFields(new Date()).date} disabled={booked} /></label>
+        <div className="availability-time-fields"><label>Start Time<input aria-label="Start Time" type="time" name="start" value={form.start} onChange={change} required disabled={booked} /></label><label>End Time<input aria-label="End Time" type="time" name="end" value={form.end} onChange={change} required disabled={booked} /></label></div>
+        <label>Location (optional)<input aria-label="Location (optional)" name="location" value={form.location} onChange={change} maxLength={300} placeholder="Office, room or online meeting" /></label>
+        <footer className="modal-actions"><button type="button" className="secondary" onClick={onClose}>Cancel</button><button type="submit" value={canPublish ? "Published" : slot.status} disabled={unavailable}>{busy ? "Saving..." : canPublish ? "Publish availability" : "Save availability"}</button>{canPublish && <button type="submit" value="Draft" className="secondary" disabled={unavailable}>Save draft</button>}</footer>
+      </fieldset>
+    </form>
+  </Modal>;
 }
 function SlotDetails({ id, base, onClose, onSaved, onEdit }) {
   const resource = useResource(`${base}/${id}`);

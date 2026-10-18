@@ -50,22 +50,19 @@ test("staff publishes, students book, admin reviews, staff edits and cancels wit
   await page.getByRole("link", { name: "Manage Time Slots", exact: true }).click();
   await expect(page).toHaveURL(/\/staff\/appointments$/);
   await page.getByRole("button", { name: "Create Availability", exact: true }).click();
-  await page.getByLabel("Service category", { exact: true }).selectOption("Availability Test Services");
-  await page.getByLabel("University service", { exact: true }).selectOption(String(service._id));
-  await page.getByLabel("Appointment title", { exact: true }).fill(prefix + " consultation");
-  await page.getByLabel("Description / purpose", { exact: true }).fill("Discuss student service options.");
-  await page.getByLabel("Appointment date", { exact: true }).last().fill(date);
-  await page.getByLabel("Start time", { exact: true }).fill("09:00");
-  await page.getByLabel("End time", { exact: true }).fill("10:00");
-  await page.getByLabel("Building / department", { exact: true }).fill("Student Services Building");
-  await page.getByLabel("Room / office", { exact: true }).fill("Room 204");
-  await page.getByLabel("Maximum students", { exact: true }).fill("2");
-  await page.getByLabel("Duration (minutes, optional)", { exact: true }).fill("20");
-  await page.getByLabel("Additional instructions", { exact: true }).fill("Bring student ID.");
+  await page.getByRole("dialog").getByLabel("Service", { exact: true }).selectOption(String(service._id));
+  await page.getByLabel("Appointment Title", { exact: true }).fill(prefix + " consultation");
+  await page.getByLabel("Appointment Date", { exact: true }).last().fill(date);
+  await page.getByLabel("Start Time", { exact: true }).fill("09:00");
+  await page.getByLabel("End Time", { exact: true }).fill("10:00");
+  await page.getByLabel("Location (optional)", { exact: true }).fill("Student Services Building / Room 204");
   await page.getByRole("button", { name: "Publish availability", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".notice-success")).toHaveText("Availability published successfully.");
-  const slot = await Slot.findOne({ staff: staff._id }); expect(slot.capacity).toBe(2); expect(slot.startsAt.toISOString().slice(11,16)).toBe("03:30");
+  const slot = await Slot.findOne({ staff: staff._id }); expect(slot.capacity).toBe(1); expect(slot.startsAt.toISOString().slice(11,16)).toBe("03:30");
+  // Existing multi-capacity slots and hidden metadata remain compatible with the compact editor.
+  await Slot.updateOne({ _id: slot._id }, { $set: { capacity: 2, description: "Discuss student service options.", durationMinutes: 20, instructions: "Bring student ID." } });
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator(".appointment-card")).toHaveCount(1);
   await expect(page.locator(".appointment-card")).toContainText("Room 204");
   await expect(page.locator(".appointment-card")).toContainText("09:00");
@@ -128,11 +125,13 @@ test("staff publishes, students book, admin reviews, staff edits and cancels wit
   await expect(page.getByRole("dialog")).toContainText(email("student"));
   await expect(page.getByRole("dialog")).toContainText(email("second"));
   await page.getByRole("button", { name: "Edit availability", exact: true }).click();
-  await page.getByLabel("Room / office", { exact: true }).fill("Office 208");
-  await page.getByLabel("Additional instructions", { exact: true }).fill("Updated instructions: bring student ID to Office 208.");
+  await page.getByLabel("Location (optional)", { exact: true }).fill("Student Services Building / Office 208");
   await page.getByRole("button", { name: "Save availability", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".notice-success")).toContainText("Availability updated successfully.");
+  const retained = await Slot.findById(slot._id);
+  expect(retained.capacity).toBe(2); expect(retained.instructions).toBe("Bring student ID.");
+  expect(retained.description).toBe("Discuss student service options."); expect(retained.durationMinutes).toBe(20);
   await login(page, "student"); await discover(page);
   await expect(page.getByLabel("My Appointments", { exact: true })).toContainText("Office 208");
   await page.getByRole("button", { name: "Cancel booking", exact: true }).click();
@@ -159,4 +158,70 @@ test("staff publishes, students book, admin reviews, staff edits and cancels wit
   await page.goto("/notifications");
   await expect(page.getByText("Your appointment was cancelled because the availability was cancelled.", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("compact five-field form saves a draft, publishes one space, and staff rejects then accepts bookings", async ({ page }) => {
+  await login(page, "staff"); await staffSlots(page);
+  await page.getByRole("button", { name: "Create Availability", exact: true }).click();
+  const dialog = page.getByRole("dialog"), form = dialog.locator("form");
+  await expect(form.locator("input, select, textarea")).toHaveCount(6);
+  await expect(form.locator("[required]")).toHaveCount(5);
+  await expect(form.locator("textarea")).toHaveCount(0);
+  await dialog.getByLabel("Service", { exact: true }).selectOption(String(service._id));
+  await dialog.getByLabel("Appointment Title", { exact: true }).fill(prefix + " compact");
+  await dialog.getByLabel("Appointment Date", { exact: true }).fill("2020-01-01");
+  expect(await dialog.getByLabel("Appointment Date", { exact: true }).evaluate(input => input.validity.rangeUnderflow)).toBe(true);
+  await dialog.getByLabel("Appointment Date", { exact: true }).fill(date);
+  await dialog.getByLabel("Start Time", { exact: true }).fill("11:00");
+  await dialog.getByLabel("End Time", { exact: true }).fill("10:00");
+  await dialog.getByRole("button", { name: "Publish availability", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("End time must be later than start time.");
+  await dialog.getByLabel("End Time", { exact: true }).fill("12:00");
+  for (const width of [1280, 820, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await dialog.evaluate(element => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+    for (const name of ["Service", "Appointment Title", "Appointment Date", "Start Time", "End Time"]) {
+      const box = await dialog.getByLabel(name, { exact: true }).boundingBox();
+      expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(844);
+    }
+    await page.screenshot({ path: `test-results/compact-availability-${width}.png`, fullPage: true });
+  }
+  await dialog.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".notice-success")).toHaveText("Availability saved as draft.");
+  let slot = await Slot.findOne({ staff: staff._id, title: prefix + " compact" });
+  expect(slot.capacity).toBe(1); expect(slot.status).toBe("Draft");
+  expect(slot.category).toBe(service.department); expect(slot.description).toBe(""); expect(slot.location).toBe("");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, "student"); await discover(page);
+  await expect(page.locator(".appointment-card")).toHaveCount(0);
+  await login(page, "staff"); await staffSlots(page);
+  await page.getByLabel("Status", { exact: true }).selectOption("Draft");
+  await page.getByRole("button", { name: "View & manage", exact: true }).click();
+  await dialog.getByRole("button", { name: "Edit availability", exact: true }).click();
+  await dialog.getByRole("button", { name: "Publish availability", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  slot = await Slot.findById(slot._id); expect(slot.status).toBe("Published");
+  const book = async key => {
+    await login(page, key); await discover(page);
+    await expect(page.locator(".appointment-card")).toHaveCount(1);
+    await page.locator(".appointment-card").getByRole("button", { name: "Book Appointment", exact: true }).click();
+    await dialog.getByLabel("Reason", { exact: true }).fill(prefix + " compact reason");
+    await dialog.getByRole("button", { name: "Confirm booking", exact: true }).click();
+    await expect(dialog).toHaveCount(0); await expect(page.locator(".appointment-card")).toHaveCount(0);
+  };
+  const review = async status => {
+    await login(page, "staff"); await page.goto("/staff/bookings");
+    await page.getByLabel("Search bookings", { exact: false }).fill(prefix + " compact reason");
+    await expect(page.locator("tbody tr")).toHaveCount(status === "Rejected" ? 1 : 2);
+    await page.getByRole("button", { name: "Review", exact: true }).first().click();
+    await dialog.getByLabel("Update status", { exact: true }).selectOption(status);
+    await dialog.getByRole("button", { name: "Review changes", exact: true }).click();
+    await dialog.getByRole("button", { name: "Confirm changes", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(await Appointment.countDocuments({ slot: slot._id, status })).toBe(1);
+  };
+  await book("student"); await review("Rejected");
+  await book("second"); await review("Approved");
+  expect(await Appointment.countDocuments({ slot: slot._id, status: { $in: ["Pending", "Approved"] } })).toBe(1);
 });

@@ -64,9 +64,9 @@ async function fields(body, user, legacy = false) {
   if (endsAt <= startsAt || endsAt - startsAt > 8 * 3600000) v.fail("End time must be after start time and within 8 hours");
   const values = { staff, startsAt, endsAt, capacity: body.capacity === undefined ? 1 : integer(body.capacity, "Capacity", 100),
     title: legacy && body.title === undefined ? "Staff appointment" : v.text(body.title, "Appointment title", 160),
-    description: v.text(body.description, "Description", 2000, !legacy),
-    building: v.text(body.building, "Building / department", 120, !legacy),
-    room: v.text(body.room, "Room / office", 120, !legacy),
+    description: v.text(body.description, "Description", 2000, false) ?? "",
+    building: v.text(body.building, "Building / department", 120, false) ?? "",
+    room: v.text(body.room, "Room / office", 120, false) ?? "",
     instructions: v.text(body.instructions, "Instructions", 2000, false),
     status: body.status === undefined ? "Published" : v.choice(body.status, ["Draft", "Published"], "availability status"),
   };
@@ -79,7 +79,7 @@ async function fields(body, user, legacy = false) {
     if (!service) v.fail("Choose an active university service");
     values.service = service._id; values.serviceName = service.name; values.category = service.department;
   }
-  values.location = values.building ? [values.building, values.room].filter(Boolean).join(" / ") : v.text(body.location, "Location", 200, false);
+  values.location = values.building ? [values.building, values.room].filter(Boolean).join(" / ") : v.text(body.location, "Location", 300, false) ?? "";
   if (!(await User.exists({ _id: staff, role: "staff", approvalStatus: "approved", active: { $ne: false } }))) v.fail("Choose an active staff member");
   return values;
 }
@@ -144,7 +144,7 @@ exports.details = async (req, res) => {
   res.json({ slot: (await enriched([slot]))[0], bookings });
 };
 exports.update = async (req, res) => {
-  v.body(req.body, ["expectedUpdatedAt", "action", "service", "title", "description", "startsAt", "endsAt", "building", "room", "capacity", "durationMinutes", "instructions", "status"]);
+  v.body(req.body, ["expectedUpdatedAt", "action", "service", "title", "description", "startsAt", "endsAt", "building", "room", "location", "capacity", "durationMinutes", "instructions", "status"]);
   const affected = [];
   const slot = await transact(async session => {
     const slot = await Slot.findOne({ _id: v.id(req.params.id), ...slotScope(req.user) }).session(session);
@@ -173,6 +173,8 @@ exports.update = async (req, res) => {
       if (req.body.endsAt !== undefined) instant(req.body.endsAt, "End time");
       const body = { ...slot.toObject(), ...req.body }; delete body.expectedUpdatedAt;
       const requested = Object.fromEntries(["staff", "service", "title", "description", "startsAt", "endsAt", "building", "room", "capacity", "durationMinutes", "instructions", "status", "location"].filter(key => body[key] !== undefined).map(key => [key, body[key]]));
+      // A combined location replaces the address; omitted locations retain legacy details.
+      if (req.body.location !== undefined) { requested.building = ""; requested.room = ""; }
       requested.startsAt = new Date(requested.startsAt).toISOString(); requested.endsAt = new Date(endTime(body)).toISOString();
       if (req.user.role === "staff") delete requested.staff;
       else requested.staff = String(slot.staff);

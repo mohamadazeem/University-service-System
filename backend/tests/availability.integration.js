@@ -26,6 +26,22 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     };
     const start = new Date(Date.now() + 7 * 86400000); start.setUTCHours(6,0,0,0);
     const body = { service: String(service._id), title: prefix, description: "Discuss university services", startsAt: start.toISOString(), endsAt: new Date(start.getTime() + 3600000).toISOString(), building: "University Services Building", room: "Room 204", capacity: 2, durationMinutes: 20, instructions: "Bring your student ID", status: "Draft" };
+    // The compact form needs only service, title and the start/end instants.
+    const compactStart = new Date(start.getTime() + 5 * 86400000);
+    const compact = { service: String(service._id), title: prefix + " compact", startsAt: compactStart.toISOString(), endsAt: new Date(+compactStart + 3600000).toISOString(), status: "Draft" };
+    const compactResult = await call("/staff/appointment-slots", staff, "POST", compact);
+    assert.equal(compactResult.code, 201); owned.slots.push(compactResult.slot._id);
+    assert.equal(compactResult.slot.capacity, 1);
+    assert.equal(compactResult.slot.category, service.department);
+    assert.equal(compactResult.slot.description, ""); assert.equal(compactResult.slot.location, "");
+    const relocated = await call("/staff/appointment-slots/" + compactResult.slot._id, staff, "PATCH", { location: "Online meeting", expectedUpdatedAt: compactResult.slot.updatedAt });
+    assert.equal(relocated.code, 200); assert.equal(relocated.slot.location, "Online meeting");
+    assert.equal(relocated.slot.capacity, 1);
+    for (const change of [{ startsAt: "2020-01-01T00:00:00Z" }, { endsAt: compact.startsAt }, { endsAt: new Date(+compactStart - 60000).toISOString() }])
+      assert.equal((await call("/staff/appointment-slots", staff, "POST", { ...compact, ...change })).code, 400);
+    assert.equal((await call("/staff/appointment-slots/" + compactResult.slot._id, staff, "PATCH", { status: "Published", expectedUpdatedAt: relocated.slot.updatedAt })).code, 200);
+    assert.equal((await call("/appointments", students[0], "POST", { slot: compactResult.slot._id, reason: "Compact booking" })).code, 201);
+    assert.equal((await call("/appointments", students[1], "POST", { slot: compactResult.slot._id, reason: "Must not double book" })).code, 409);
     assert.equal((await call("/staff/appointment-slots", null)).code, 401);
     assert.equal((await call("/staff/appointment-slots", students[0], "POST", body)).code, 403);
     assert.equal((await call("/staff/appointment-slots", pending, "POST", body)).code, 401);
