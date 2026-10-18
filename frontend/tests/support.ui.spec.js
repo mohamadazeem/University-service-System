@@ -343,3 +343,26 @@ test("student registration matches the split design, fits mobile and validates c
   await expect(page.getByRole("alert")).toHaveText("Email already registered"); expect(writes).toBe(1);
   await expect(page.getByRole("button", { name: "Create student account", exact: true })).toBeEnabled();
 });
+
+test("staff registration is responsive and checks confirmation before requesting approval", async ({ page }) => {
+  let writes = 0;
+  await page.route("**/api/auth/staff/register", async route => { writes++; expect(Object.keys(route.request().postDataJSON()).sort()).toEqual(["email", "name", "password", "staffId"]); await route.fulfill({ status: 201, json: { message: "Registration submitted successfully. Please wait for administrator approval before signing in." } }); });
+  await page.goto("/staff/register");
+  await expect(page.getByRole("heading", { name: "Create your staff account" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to login" })).toHaveAttribute("href", "/staff/login");
+  for (const width of [1536, 820, 390]) {
+    await page.setViewportSize({ width, height: 1024 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/staff-registration-${width}.png`, fullPage: true });
+  }
+  await page.getByLabel("Full name", { exact: true }).fill("Test Lecturer");
+  await page.getByLabel("Email address", { exact: true }).fill("staff@example.test");
+  await page.getByLabel("Staff ID / Employee Number", { exact: true }).fill("S12345");
+  await page.getByLabel("Password", { exact: true }).fill("Password123!");
+  await page.getByLabel("Confirm password", { exact: true }).fill("Different123!");
+  await page.getByRole("button", { name: "Create staff account" }).click();
+  await expect(page.getByRole("alert")).toContainText("Passwords do not match"); expect(writes).toBe(0);
+  await page.getByLabel("Confirm password", { exact: true }).fill("Password123!");
+  await page.getByRole("button", { name: "Create staff account" }).click();
+  await expect(page.getByRole("status")).toContainText("wait for administrator approval"); expect(writes).toBe(1);
+});
