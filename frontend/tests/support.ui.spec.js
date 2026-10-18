@@ -344,6 +344,41 @@ test("student registration matches the split design, fits mobile and validates c
   await expect(page.getByRole("button", { name: "Create student account", exact: true })).toBeEnabled();
 });
 
+test("authentication fits desktop viewports and stays reachable on short or zoom-sized screens", async ({ page }) => {
+  test.setTimeout(60000);
+  for (const [width, height] of [[1280, 720], [1366, 768], [1920, 1080]]) {
+    await page.setViewportSize({ width, height });
+    for (const path of ["/login", "/student/login", "/staff/login", "/admin/login", "/register", "/staff/register"]) {
+      await page.goto(path);
+      await expect(page.locator("main")).toBeVisible();
+      const metrics = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth, scrollHeight: document.documentElement.scrollHeight, sections: [...document.querySelectorAll(".public-content, .registration-story, .login-content, .portal-login-card, .login-panel-header, .site-footer")].map(e => ({ name: e.className, height: e.getBoundingClientRect().height })) }));
+      expect(metrics.scrollWidth, path + " horizontal overflow").toBeLessThanOrEqual(width);
+      expect(metrics.scrollHeight, path + " vertical overflow " + JSON.stringify(metrics.sections)).toBeLessThanOrEqual(height + 1);
+      const controls = page.locator("input:not([type=radio]), button, a, h1, form label, form small");
+      for (const control of await controls.all()) {
+        await expect(control).toBeVisible();
+        const box = await control.boundingBox();
+        expect(box.y, path).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height, path).toBeLessThanOrEqual(height + 1);
+        expect(box.x, path).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width, path).toBeLessThanOrEqual(width + 1);
+      }
+      if (["/login", "/register", "/staff/register"].includes(path)) await page.screenshot({ path: `test-results/auth-fit-${path.replaceAll("/", "-")}-${width}.png`, fullPage: true });
+    }
+  }
+  // 683×384 is the CSS viewport of a 1366×768 display at 200% browser zoom.
+  for (const [width, height] of [[1366, 500], [683, 384], [390, 844]]) {
+    await page.setViewportSize({ width, height });
+    for (const path of ["/login", "/register", "/staff/register"]) {
+      await page.goto(path);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      for (const control of await page.locator("input:not([type=radio]), button[type=submit], .registration-submit, .site-footer a").all()) {
+        await control.scrollIntoViewIfNeeded(); await expect(control).toBeInViewport();
+      }
+    }
+  }
+});
+
 test("staff registration is responsive and checks confirmation before requesting approval", async ({ page }) => {
   let writes = 0;
   await page.route("**/api/auth/staff/register", async route => { writes++; expect(Object.keys(route.request().postDataJSON()).sort()).toEqual(["email", "name", "password", "staffId"]); await route.fulfill({ status: 201, json: { message: "Registration submitted successfully. Please wait for administrator approval before signing in." } }); });
