@@ -50,3 +50,20 @@ exports.readAll = async (req, res) => {
   await Notification.updateMany({ user: req.user.id, isRead: false }, { $set: { isRead: true, readAt: new Date() } });
   res.json({ message: "All notifications marked as read." });
 };
+exports.related = async (req, res) => {
+  const notification = await Notification.findOne({ _id: v.id(req.params.id), user: req.user.id });
+  if (!notification) v.fail("Notification not found", 404);
+  const type = notification.entityType || notification.type;
+  const definitions = {
+    request: [require("../models/Request"), "service description priority status staffComment createdAt updatedAt"],
+    appointment: [require("../models/Appointment"), "date time reason rejectionReason status history slot staff createdAt updatedAt"],
+    complaint: [require("../models/Complaint"), "subject description status response category priority department createdAt updatedAt"],
+  };
+  if (!definitions[type] || !notification.entityId) v.fail("Related record is no longer available", 404);
+  const [Model, fields] = definitions[type];
+  let query = Model.findOne({ _id: notification.entityId, student: req.user.id }).select(fields);
+  if (type === "appointment") query = query.populate("staff", "name").populate("slot", "title serviceName startsAt endsAt location instructions");
+  const item = await query;
+  if (!item) v.fail("Related record is no longer available", 404);
+  res.json({ type, item });
+};

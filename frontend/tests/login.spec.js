@@ -243,7 +243,7 @@ test("real support workflows persist across student and administrator sessions",
   await page.goto("/complaints");
   await expect(page.getByText("Temporary browser concern resolved.", { exact: true })).toBeVisible();
   await page.goto("/notifications");
-  await expect(page.getByText("Complaint status: Resolved.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Complaint status: Resolved\./)).toBeVisible();
   await page.locator(".notification-item").filter({ hasText: "Complaint status: Resolved." }).getByRole("button", { name: "Mark as read" }).click();
   await expect(page.locator(".notification-item").filter({ hasText: "Complaint status: Resolved." }).getByRole("button")).toHaveCount(0);
   await page.reload();

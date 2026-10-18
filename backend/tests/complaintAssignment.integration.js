@@ -76,7 +76,7 @@ test("complaint assignment: admin oversight, assignee privacy, reassignment, not
     assert.equal(overview.resolved, await Complaint.countDocuments({ status: "Resolved" }));
     assert.equal(overview.inProgress, await Complaint.countDocuments({ status: { $in: ["In Review", "In Progress"] } }));
     assert.ok(await Notification.exists({ user: student.id, message: /assigned to university staff/ }));
-    assert.ok(await Notification.exists({ user: student.id, message: "Complaint status: Resolved." }));
+    assert.ok(await Notification.exists({ user: student.id, message: /^Complaint status: Resolved\./ }));
     assert.equal((await call("/complaints/" + id, student)).item.status, "Resolved");
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));

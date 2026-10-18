@@ -87,7 +87,7 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     assert.equal((await call("/admin/appointments/" + reviewId, admin, "PATCH", approval)).code, 200);
     assert.equal((await call("/admin/appointments/" + reviewId, admin, "PATCH", approval)).code, 409);
     const approved = await Appointment.findById(reviewId);
-    assert.equal((await call("/admin/appointments/" + reviewId, admin, "PATCH", { status: "Rejected", expectedStatus: "Approved", expectedUpdatedAt: approved.updatedAt.toISOString() })).code, 200);
+    assert.equal((await call("/admin/appointments/" + reviewId, admin, "PATCH", { status: "Rejected", rejectionReason: "Please choose another appointment time.", expectedStatus: "Approved", expectedUpdatedAt: approved.updatedAt.toISOString() })).code, 200);
     assert.equal((await call("/appointments", students[otherWinnerIndex], "POST", { slot: id, reason: "Rebook capacity released by admin rejection" })).code, 201);
     assert.equal((await call("/staff/appointment-slots/" + id, staff, "PATCH", { startsAt: new Date(start.getTime()+60000).toISOString(), expectedUpdatedAt: details.slot.updatedAt })).code, 409);
     let booking = await Appointment.findById(bookingId);

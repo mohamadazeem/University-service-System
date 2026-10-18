@@ -315,7 +315,7 @@ test(
       assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Pending", status: "Approved" }, adminToken)).status, 200);
       assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Pending", status: "Rejected" }, adminToken)).status, 409);
       assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Approved", status: "Completed" }, adminToken)).status, 409);
-      assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Approved", status: "Rejected" }, adminToken)).status, 200);
+      assert.equal((await call(`/admin/appointments/${bookingId}`, "PATCH", { expectedStatus: "Approved", status: "Rejected", rejectionReason: "Please choose another appointment time." }, adminToken)).status, 200);
       assert.equal((await Appointment.findById(bookingId)).reservedSlot, undefined);
       assert.ok((await call("/appointments/availability", "GET", undefined, studentToken)).items.some(row => row._id === slotId));
       assert.equal((await call(`/admin/appointment-slots/${slotId}`, "DELETE", undefined, adminToken)).status, 200);

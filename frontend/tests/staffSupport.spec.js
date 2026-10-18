@@ -61,6 +61,7 @@ async function review(page, status, response) {
   await page.getByRole("button", { name: "Review", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByLabel("Update status", { exact: true }).selectOption(status);
+  if (status === "Rejected") await page.getByLabel("Rejection reason", { exact: true }).fill("Please choose another appointment time.");
   if (response) await page.getByLabel("Staff response", { exact: true }).fill(response);
   await page.getByRole("button", { name: "Review changes", exact: true }).click();
   await page.getByRole("button", { name: "Confirm changes", exact: true }).click();

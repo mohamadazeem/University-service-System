@@ -1,10 +1,12 @@
-﻿import { test, expect } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import process from "node:process";
 const backend = createRequire(new URL("../../backend/package.json", import.meta.url));
 backend("dotenv").config({ path: fileURLToPath(new URL("../../backend/.env", import.meta.url)), quiet: true });
 const mongoose = backend("mongoose"), bcrypt = backend("bcryptjs");
+const jwt = backend("jsonwebtoken"), Request = backend("./models/Request"), Complaint = backend("./models/Complaint");
 const User = backend("./models/user"), Service = backend("./models/service"), Slot = backend("./models/AppointmentSlot"), Appointment = backend("./models/Appointment"), Notification = backend("./models/Notification");
 const prefix = "availability-ui-" + randomUUID(), password = randomUUID() + "Aa1!";
 const users = [], email = role => prefix + role + "@example.test";
@@ -14,7 +16,7 @@ test.beforeAll(async () => {
   await backend("./config/db")();
   const hash = await bcrypt.hash(password, 12);
   for (const [role, key] of [["admin","admin"], ["staff","staff"], ["student","student"], ["student","second"]]) {
-    const user = await User.create({ name: "Availability " + key, email: email(key), password: hash, role, ...(role === "staff" ? { staffId: prefix.slice(0, 50), approvalStatus: "approved" } : { studentId: prefix + key }) });
+    const user = await User.create({ name: "Availability " + key, email: email(key), password: hash, role, ...(role === "staff" ? { staffId: prefix.slice(0, 50), approvalStatus: "approved" } : { studentId: prefix.slice(0, 35) + key }) });
     users.push(user._id); if (role === "staff") staff = user;
   }
   service = await Service.create({ name: prefix, nameKey: prefix, department: "Availability Test Services", description: "Temporary scheduling browser service" });
@@ -25,16 +27,28 @@ test.afterAll(async () => {
     await Appointment.deleteMany({ slot: { $in: slots.map(slot => slot._id) } });
     await Slot.deleteMany({ _id: { $in: slots.map(slot => slot._id) } });
     await Notification.deleteMany({ user: { $in: users } });
+    await Request.deleteMany({ student: { $in: users } });
+    await Complaint.deleteMany({ student: { $in: users } });
     await User.deleteMany({ _id: { $in: users } });
     if (service) await Service.deleteOne({ _id: service._id });
   } finally { await mongoose.disconnect(); }
 });
-async function login(page, key) {
+const sessions = new Map();
+async function login(page, key, fresh = false) {
   const role = ["staff", "admin"].includes(key) ? key : "student";
+  const destination = role === "staff" ? "/staff" : role === "admin" ? "/admin" : "/dashboard";
+  if (!fresh && sessions.has(key)) {
+    await page.goto("/login");
+    await page.evaluate(session => { localStorage.setItem("token", session.token); localStorage.setItem("user", session.user); }, sessions.get(key));
+    await page.goto(destination);
+    await expect(page).toHaveURL(new RegExp(destination + "$"));
+    return;
+  }
   await page.goto(`/${role}/login`); await page.evaluate(() => localStorage.clear()); await page.reload();
   await page.locator("#login-email").fill(email(key)); await page.locator("#login-password").fill(password);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(page).toHaveURL(role === "staff" ? /\/staff$/ : role === "admin" ? /\/admin$/ : /\/dashboard$/);
+  sessions.set(key, await page.evaluate(() => ({ token: localStorage.getItem("token"), user: localStorage.getItem("user") })));
 }
 async function staffSlots(page) {
   await page.goto("/staff/appointments");
@@ -44,6 +58,7 @@ async function discover(page) {
   await page.goto("/appointments"); await page.getByLabel("Search availability", { exact: true }).fill(prefix);
   await page.getByLabel("University service", { exact: true }).selectOption(String(service._id));
 }
+
 test("staff publishes, students book, admin reviews, staff edits and cancels with notifications", async ({ page }) => {
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   await login(page, "staff");
@@ -216,6 +231,7 @@ test("compact five-field form saves a draft, publishes one space, and staff reje
     await expect(page.locator("tbody tr")).toHaveCount(status === "Rejected" ? 1 : 2);
     await page.getByRole("button", { name: "Review", exact: true }).first().click();
     await dialog.getByLabel("Update status", { exact: true }).selectOption(status);
+    if (status === "Rejected") await dialog.getByLabel("Rejection reason", { exact: true }).fill("Please choose another appointment time.");
     await dialog.getByRole("button", { name: "Review changes", exact: true }).click();
     await dialog.getByRole("button", { name: "Confirm changes", exact: true }).click();
     await expect(dialog).toHaveCount(0);
@@ -224,4 +240,68 @@ test("compact five-field form saves a draft, publishes one space, and staff reje
   await book("student"); await review("Rejected");
   await book("second"); await review("Approved");
   expect(await Appointment.countDocuments({ slot: slot._id, status: { $in: ["Pending", "Approved"] } })).toBe(1);
+});
+
+test("real student notices open owned booking, request and complaint details and preserve read state", async ({ page }) => {
+  test.setTimeout(240000);
+  const call = async (path, userIndex, method = "GET", data) => {
+    const response = await page.request.fetch(`/api${path}`, { method, headers: { Authorization: "Bearer " + jwt.sign({ id: String(users[userIndex]) }, process.env.JWT_SECRET) }, ...(data && { data }) });
+    const body = await response.json();
+    expect(response.status(), JSON.stringify(body)).toBe(method === "POST" ? 201 : 200);
+    return body;
+  };
+  await login(page, "student"); await discover(page);
+  await page.getByLabel("Search availability", { exact: true }).fill(prefix + " direct");
+  const start = new Date(date + "T16:00:00+05:30");
+  const created = await call("/staff/appointment-slots", 1, "POST", { service: String(service._id), title: prefix + " direct", startsAt: start.toISOString(), endsAt: new Date(+start + 3600000).toISOString(), location: "Registry Room 204", status: "Published" });
+  // A different user's successful publication is discovered on focus, without a page reload.
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator(".appointment-card")).toHaveCount(1);
+  await page.locator(".appointment-card").getByRole("button", { name: "Book Appointment", exact: true }).click();
+  await page.getByLabel("Reason", { exact: true }).fill("Direct notification booking");
+  await page.getByRole("button", { name: "Confirm booking", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const booking = await Appointment.findOne({ slot: created.slot._id });
+  await call("/notifications", 1);
+  expect(await Notification.countDocuments({ user: users[1], entityId: booking._id, title: "New appointment booking" })).toBe(1);
+  const openNotice = async (title, entityId, pathname, text) => {
+    const notice = await Notification.findOne({ user: users[2], entityId, title }).sort({ createdAt: -1 });
+    expect(notice).toBeTruthy();
+    const unread = await Notification.countDocuments({ user: users[2], isRead: false });
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    const bell = page.getByRole("button", { name: "Notifications", exact: true });
+    await expect(bell.locator(".notification-count")).toHaveText(String(unread));
+    await bell.click();
+    expect(await Notification.countDocuments({ user: users[2], isRead: false })).toBe(unread);
+    await page.getByRole("region", { name: "Notifications dropdown" }).locator(`a[href="${pathname}?notification=${notice._id}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`${pathname}\\?notification=${notice._id}$`));
+    await expect(page.getByRole("dialog")).toContainText(String(entityId));
+    await expect(page.getByRole("dialog")).toContainText(text);
+    await expect(bell.locator(".notification-count")).toHaveText(String(unread - 1));
+    expect(await Notification.countDocuments({ user: users[2], isRead: false })).toBe(unread - 1);
+    expect((await Notification.findById(notice._id)).readAt).toBeTruthy();
+    await page.reload(); await expect(page.getByRole("dialog")).toContainText(text);
+    await page.getByRole("button", { name: "Back to list", exact: true }).click();
+    return notice;
+  };
+  await call(`/staff/bookings/${booking._id}`, 1, "PATCH", { status: "Approved", expectedStatus: "Pending", expectedUpdatedAt: booking.updatedAt.toISOString() });
+  await openNotice("Appointment approved", booking._id, "/appointments", "Registry Room 204");
+  const approved = await Appointment.findById(booking._id);
+  await call(`/staff/bookings/${booking._id}`, 1, "PATCH", { status: "Rejected", expectedStatus: "Approved", expectedUpdatedAt: approved.updatedAt.toISOString(), rejectionReason: "Please choose a Registry appointment instead." });
+  await openNotice("Appointment rejected", booking._id, "/appointments", "Please choose a Registry appointment instead.");
+  const request = await call("/requests", 2, "POST", { serviceId: String(service._id), studentId: prefix.slice(0, 35) + "student", description: "Direct request notification" });
+  const assigned = await call(`/admin/requests/${request.request._id}`, 0, "PATCH", { assignedStaff: String(users[1]), expectedUpdatedAt: request.request.updatedAt });
+  await call(`/staff/requests/${request.request._id}`, 1, "PATCH", { status: "Processing", expectedStatus: "Pending", expectedUpdatedAt: assigned.request.updatedAt, staffComment: "Your documents are being verified." });
+  const requestNotice = await openNotice("Request processing", request.request._id, "/my-requests", "Your documents are being verified.");
+  const complaint = await call("/complaints", 2, "POST", { subject: prefix + " concern", description: "Direct complaint notification" });
+  const record = await Complaint.findById(complaint.complaint._id);
+  const assignment = await call(`/admin/complaints/${record._id}/assignment`, 0, "PATCH", { assignedStaff: String(users[1]), expectedUpdatedAt: record.updatedAt.toISOString() });
+  await call(`/staff/complaints/${record._id}`, 1, "PATCH", { status: "Resolved", expectedStatus: "In Progress", expectedUpdatedAt: assignment.item.updatedAt, response: "We have corrected your university record." });
+  await openNotice("Complaint response received", record._id, "/complaints", "We have corrected your university record.");
+  await login(page, "student", true); await page.goto(`/complaints?notification=${(await Notification.findOne({ user: users[2], entityId: record._id, title: "Complaint response received" }))._id}`);
+  await expect(page.getByRole("dialog")).toContainText("We have corrected your university record.");
+  await Request.deleteOne({ _id: request.request._id });
+  await page.goto(`/my-requests?notification=${requestNotice._id}`);
+  await expect(page.getByText("This record is no longer available.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

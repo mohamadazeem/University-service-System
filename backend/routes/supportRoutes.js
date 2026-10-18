@@ -12,6 +12,7 @@ router.get("/complaints", authorize("student"), c.list(c.Complaint));
 router.post("/complaints", authorize("student"), c.submitComplaint);
 router.get("/notifications", c.notifications);
 router.get("/notifications/unread-count", require("../controllers/notificationController").count);
+router.get("/notifications/:id/related", authorize("student"), require("../controllers/notificationController").related);
 router.patch("/notifications/read-all", require("../controllers/notificationController").readAll);
 router.patch("/notifications/:id/read", c.readNotification);
 module.exports = router;

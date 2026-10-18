@@ -146,8 +146,15 @@ const updateRequest = async (req, res) => {
       false,
     );
   if (!Object.keys(values).length) v.fail("No changes provided");
+  for (const key of Object.keys(values)) {
+    if (String(values[key] ?? "") === String(request[key] ?? "")) delete values[key];
+  }
+  if (!Object.keys(values).length) {
+    return res.json({ message: "No changes to save", request, allowedStatuses: transitions[request.status] });
+  }
   const { event } = require("../utils/notificationEvent");
-  const notices = [event(request.student, `Your service request was updated${values.status ? ": " + values.status : ""}.`)];
+  const message = `${request.service || "Your service request"}: ${values.status || request.status}.${values.staffComment ? " Update: " + values.staffComment : ""}${values.assignedStaff !== undefined ? " Your staff assignment changed." : ""}${values.priority ? " Priority: " + values.priority + "." : ""}`;
+  const notices = [event(request.student, message, { title: values.status ? `Request ${values.status.toLowerCase()}` : "Service request update" })];
   if (values.assignedStaff && String(values.assignedStaff) !== String(request.assignedStaff || ""))
     notices.push(event(values.assignedStaff, "A service request has been assigned to you.", { title: "New request assignment" }));
   if (values.assignedStaff !== undefined && request.assignedStaff && String(values.assignedStaff || "") !== String(request.assignedStaff))

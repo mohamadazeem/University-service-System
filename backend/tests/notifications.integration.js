@@ -41,6 +41,13 @@ test("notifications: real business events, role ownership, filters, reads, relog
     let studentInbox = await inbox(student);
     assert.ok(studentInbox.items.some(item => item.message.includes("Processing")));
     const before = studentInbox.total;
+    const unchanged = await Request.findById(request._id);
+    assert.equal((await call("/staff/requests/" + request._id, staff, "PATCH", { status: "Processing", expectedStatus: "Processing", expectedUpdatedAt: unchanged.updatedAt.toISOString(), staffComment: "We are processing your request." })).code, 200);
+    assert.equal((await inbox(student)).total, before);
+    const requestNotice = studentInbox.items.find(item => item.type === "request");
+    assert.equal((await call(`/notifications/${requestNotice._id}/related`, student)).item._id, request._id);
+    assert.equal((await call(`/notifications/${requestNotice._id}/related`, staff)).code, 403);
+    assert.equal((await call(`/notifications/${requestNotice._id}/related`, admin)).code, 403);
     assert.equal((await call("/staff/requests/" + request._id, staff, "PATCH", { status: "Rejected", expectedStatus: "Pending" })).code, 409);
     assert.equal((await inbox(student)).total, before);
     const currentRequest = await Request.findById(request._id);
@@ -55,7 +62,20 @@ test("notifications: real business events, role ownership, filters, reads, relog
     assert.ok(staffInbox.items.some(item => item.title === "New appointment booking"));
     const booking = await Appointment.findById(booked.appointment._id);
     assert.equal((await call("/admin/appointments/" + booking._id, admin, "PATCH", { status: "Approved", expectedStatus: "Pending", expectedUpdatedAt: booking.updatedAt.toISOString() })).code, 200);
-    assert.ok((await inbox(student)).items.some(item => item.message === "Appointment status: Approved."));
+    assert.ok((await inbox(student)).items.some(item => item.message.startsWith("Appointment status: Approved.")));
+    const approvedNotice = (await inbox(student)).items.find(item => item.title === "Appointment approved");
+    assert.match(approvedNotice.message, /Services \/ 101/);
+    assert.match(approvedNotice.message, /Asia\/Colombo/);
+    assert.equal((await call(`/notifications/${approvedNotice._id}/related`, student)).item._id, String(booking._id));
+    const approvedBooking = await Appointment.findById(booking._id);
+    const rejection = { status: "Rejected", expectedStatus: "Approved", expectedUpdatedAt: approvedBooking.updatedAt.toISOString() };
+    const beforeRejection = (await inbox(student)).total;
+    assert.equal((await call("/staff/bookings/" + booking._id, staff, "PATCH", rejection)).code, 400);
+    assert.equal((await inbox(student)).total, beforeRejection);
+    assert.equal((await call("/staff/bookings/" + booking._id, staff, "PATCH", { ...rejection, rejectionReason: "Please attend the Registry office instead." })).code, 200);
+    const rejectedNotice = (await inbox(student)).items.find(item => item.title === "Appointment rejected");
+    assert.match(rejectedNotice.message, /Please attend the Registry office instead/);
+    assert.equal((await call(`/notifications/${rejectedNotice._id}/related`, student)).item.rejectionReason, "Please attend the Registry office instead.");
     const complaint = await call("/complaints", student, "POST", { subject: prefix, description: "Please review this concern" });
     assert.equal(complaint.code, 201); owned.complaints.push(complaint.complaint._id);
     const complaintRecord = await Complaint.findById(complaint.complaint._id);
@@ -63,7 +83,12 @@ test("notifications: real business events, role ownership, filters, reads, relog
     assert.equal(assignedComplaint.code, 200);
     assert.ok((await inbox(staff)).items.some(item => item.title === "New complaint assignment"));
     assert.equal((await call("/admin/complaints/" + complaintRecord._id, admin, "PATCH", { status: "Resolved", expectedStatus: "In Progress", expectedUpdatedAt: assignedComplaint.item.updatedAt, response: "The concern has been resolved." })).code, 200);
-    assert.ok((await inbox(student)).items.some(item => item.message === "Complaint status: Resolved."));
+    assert.ok((await inbox(student)).items.some(item => item.message.startsWith("Complaint status: Resolved.")));
+    const complaintNotice = (await inbox(student)).items.find(item => item.title === "Complaint response received");
+    assert.match(complaintNotice.message, /The concern has been resolved/);
+    const complaintDetails = await call(`/notifications/${complaintNotice._id}/related`, student);
+    assert.equal(complaintDetails.item._id, String(complaintRecord._id));
+    assert.equal(complaintDetails.item.investigationNotes, undefined);
     const pendingEmail = prefix + "pending@example.test";
     assert.equal((await call("/auth/staff/register", null, "POST", { name: prefix, email: pendingEmail, password, staffId: prefix })).code, 201);
     const pending = await User.findOne({ email: pendingEmail }).select("+notificationEvents"); owned.users.push(pending._id);
@@ -94,6 +119,10 @@ test("notifications: real business events, role ownership, filters, reads, relog
     assert.equal((await call("/notifications/unread-count", student)).unread, 0);
     assert.equal((await call("/notifications/unread-count", staff)).unread, staffCount);
     assert.equal((await call("/notifications?user=" + staff.user._id, student)).total, studentInbox.total);
+    const staffNotice = (await inbox(staff)).items[0];
+    assert.equal((await call(`/notifications/${staffNotice._id}/related`, student)).code, 404);
+    await Request.deleteOne({ _id: request._id });
+    assert.equal((await call(`/notifications/${requestNotice._id}/related`, student)).code, 404);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
     if (mongoose.connection.readyState === 1) {

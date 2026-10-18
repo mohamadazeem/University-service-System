@@ -2,8 +2,9 @@ import { useState } from "react";
 import useResource from "../hooks/useResource";
 import { Badge } from "../admin/AdminUI";
 import { dateTime } from "../admin/adminUtils";
+import { RelatedNotificationDetails } from "./Notifications";
 export default function MyRequests() {
-  const resource = useResource("/requests/my");
+  const resource = useResource("/requests/my", true);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const rows = (resource.data?.requests || []).filter(
@@ -15,6 +16,7 @@ export default function MyRequests() {
   );
   return (
     <main className="page">
+      <RelatedNotificationDetails type="request" />
       <div className="page-heading">
         <div>
           <p className="eyebrow">YOUR REQUEST HISTORY</p>

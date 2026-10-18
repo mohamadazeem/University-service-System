@@ -144,11 +144,15 @@ exports.review = async (req, res) => {
   const values = { status, response };
   if (req.body.priority !== undefined) values.priority = v.choice(req.body.priority, priorities, "priority");
   if (req.body.investigationNotes !== undefined) values.investigationNotes = v.text(req.body.investigationNotes, "Investigation notes", 4000, false);
+  const publicChange = status !== record.status || response !== record.response || (values.priority !== undefined && values.priority !== record.priority);
+  if (!publicChange && (values.investigationNotes === undefined || values.investigationNotes === record.investigationNotes)) {
+    return res.json({ message: "No changes to save", item: publicItem(record, req.user) });
+  }
   const previous = !record.history?.length && record.response ? [{ status: record.status, response: record.response, priority: record.priority || "Medium", actorName: "Previous university response", actorRole: "support", at: record.updatedAt }] : [];
   const updated = await Complaint.findOneAndUpdate({ _id: record._id, ...scope(req.user), status: expectedStatus, ...(record.updatedAt && { updatedAt: record.updatedAt }) }, {
     $set: values, $push: {
       history: { $each: [...previous, { kind: "update", status, response, priority: values.priority || record.priority || "Medium", investigationNotes: values.investigationNotes, actor: req.user.id, actorName: req.user.name, actorRole: req.user.role, at: new Date() }] },
-      notificationEvents: { $each: [event(record.student, `Complaint status: ${status}.`), ...(req.user.role === "admin" && record.assignedStaff ? [event(record.assignedStaff, "An administrator updated your assigned complaint. Review its priority and response.")] : [])] },
+      notificationEvents: { $each: [...(publicChange ? [event(record.student, `Complaint status: ${status}. ${record.subject}. Response: ${response.slice(0, 500)}${response.length > 500 ? "…" : ""}`, { title: "Complaint response received" })] : []), ...(req.user.role === "admin" && record.assignedStaff ? [event(record.assignedStaff, "An administrator updated your assigned complaint. Review its priority and response.")] : [])] },
     },
   }, { returnDocument: "after", runValidators: true }).populate(populate);
   if (!updated) v.fail("This complaint changed. Reload its details.", 409);

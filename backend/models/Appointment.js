@@ -5,7 +5,8 @@ const appointmentSchema = new mongoose.Schema(
     notificationEvents: { type: [require("../utils/notificationEvent").schema], select: false, default: undefined },
     slot: { type: mongoose.Schema.Types.ObjectId, ref: "AppointmentSlot" },
     activeReservation: { type: Boolean, default: false },
-    history: [{ status: String, actor: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, at: Date }],
+    history: [{ status: String, reason: String, actor: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, at: Date }],
+    rejectionReason: { type: String, maxlength: 2000 },
     reservedSlot: { type: mongoose.Schema.Types.ObjectId, unique: true, sparse: true },
     student: {
       type: mongoose.Schema.Types.ObjectId,

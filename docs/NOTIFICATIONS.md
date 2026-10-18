@@ -1,5 +1,87 @@
 # Unified notifications
 
+## Student workflow update — 18 October 2026
+
+The existing persisted bell and inbox now open the specific Student record in a
+details dialog on the existing My Requests, Appointments or Complaints page.
+Links use `?notification=<id>`. An unread item is marked read successfully before
+navigation; opening the dropdown does not mark items read. Reloading the details
+link works, including after signing in again. Missing records show a clear notice
+above the relevant list.
+
+`GET /api/notifications/:id/related` extends the existing notification controller
+and router. It requires a Student session, an owned notification and an owned
+related entity. Responses use explicit field selections, excluding complaint
+investigation notes. Staff and Admin retain their existing destinations.
+
+- Request status, meaningful comment, priority and assignment changes produce
+  useful Student updates. Identical saves return without writing another event.
+- Approval notifications include service, Sri Lanka date/time and location when
+  available. New booking rejections require a reason in both Staff/Admin forms
+  and backend validation. The reason is saved on the booking and history, appears
+  in the notification, Student booking list and details. Existing rejected records
+  remain compatible without a reason.
+- Complaint notices include subject, status and response summary. Identical saves
+  and internal-notes-only changes do not produce Student alerts.
+- Student availability, bookings, requests, complaints and open related details
+  refresh every 30 seconds while visible and on focus. Publishing is discoverable
+  without sending a broadcast to every Student. Existing transactional booking
+  validation, cancellation notices and durable event retry/deduplication remain.
+
+These are persisted in-app notifications. Other browser sessions can take up to
+30 seconds to see an update; returning focus refreshes sooner. Email, mobile push
+and WebSockets are not implemented. Booked schedules remain protected from edits:
+Staff cancels and publishes a replacement when rescheduling is needed.
+
+### Files modified for this update
+
+Backend production files:
+`controllers/adminRequestController.js`, `controllers/appointmentController.js`,
+`controllers/complaintController.js`, `controllers/notificationController.js`,
+`models/Appointment.js`, `routes/supportRoutes.js` (under `backend/`).
+
+Frontend production files:
+`src/components/NotificationItem.jsx`, `src/hooks/useResource.js`,
+`src/pages/MyRequests.jsx`, `src/pages/Notifications.jsx`, `src/pages/StaffSupport.jsx`,
+`src/pages/StudentAppointments.jsx`, `src/pages/Support.jsx` (under `frontend/`).
+
+Tests:
+`backend/tests/availability.integration.js`,
+`backend/tests/complaintAssignment.integration.js`, `backend/tests/integration.db.js`,
+`backend/tests/notifications.integration.js`, `backend/tests/staffSupport.integration.js`,
+`frontend/tests/availability.spec.js`, `frontend/tests/login.spec.js`,
+`frontend/tests/staffSupport.spec.js`, `frontend/tests/support.ui.spec.js`.
+Documentation: `docs/NOTIFICATIONS.md`.
+
+The real browser notification scenario creates actual business events through the
+existing API and database, then clicks the real bell. It checks all three details
+destinations, individual read counts/timestamps, refresh, re-login, a removed
+record, Staff booking delivery and focus-driven slot discovery. Existing browser
+flows separately exercise Staff publishing and review through the UI. Production
+notifications are never mocked; the separate UI contract suites retain fixtures
+for error and responsive-state coverage.
+
+### Validation for the Student workflow update
+
+| Location | Command | Actual result |
+| --- | --- | --- |
+| backend | `npm.cmd test` | 37 passed |
+| backend | `npm.cmd run test:integration` | All 6 suites passed against MongoDB |
+| frontend | `npm.cmd run lint` | Passed |
+| frontend | `npm.cmd run build` | Passed |
+| frontend | `npm.cmd run test:ui` | 9 passed |
+| frontend | `npm.cmd run test:notifications` | 4 passed |
+| frontend | `npm.cmd run test:e2e` | All 8 real browser workflows passed together in the final run |
+| frontend | Isolated real Student notification navigation scenario | Passed against the actual backend and database |
+
+The first combined browser runs identified a fixture delivery assumption, an
+ambiguous notification-title selector and repeated test logins exhausting the
+existing IP limit. The fixture now fetches Staff delivery, clicks the exact
+notification ID and reuses successfully authenticated test sessions while
+retaining a fresh-login check. The production login limit was preserved.
+
+The sections below document the original shared notification implementation.
+
 Student, approved Staff/Lecturer and Admin headers use the same notification bell.
 The existing Notification collection and durable source-event mechanism are retained;
 no records need to be reset or migrated to a separate collection.

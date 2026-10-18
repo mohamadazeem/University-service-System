@@ -229,7 +229,7 @@ exports.book = async (req, res) => {
   res.status(201).json({ message: "Appointment booked successfully. Awaiting staff approval.", appointment: { _id: appointment._id, status: appointment.status } });
 };
 exports.review = async (req, res) => {
-  v.body(req.body, ["status", "expectedStatus", "expectedUpdatedAt"]);
+  v.body(req.body, ["status", "expectedStatus", "expectedUpdatedAt", "rejectionReason"]);
   const status = v.choice(req.body.status, Object.keys(transitions), "status");
   const expected = v.choice(req.body.expectedStatus, Object.keys(transitions), "expected status");
   if (!transitions[expected].includes(status)) v.fail("This status transition is not permitted", 409);
@@ -240,17 +240,22 @@ exports.review = async (req, res) => {
     if (req.user.role === "student" && status !== "Cancelled") v.fail("Students may only cancel their own bookings", 403);
     if (req.body.expectedUpdatedAt !== undefined || req.user.role !== "admin") observed(item, req.body.expectedUpdatedAt);
     if (item.status !== expected) v.fail("This record changed. Refresh and try again.", 409);
+    const rejectionReason = status === "Rejected" ? v.text(req.body.rejectionReason, "Rejection reason", 2000) : undefined;
     if (status === "Completed" && item.date > new Date()) v.fail("An appointment cannot be completed before it starts", 409);
     if (status === "Approved" && item.date <= new Date()) v.fail("A past appointment cannot be approved", 409);
     if (req.user.role === "student" && item.date <= new Date()) v.fail("Past bookings cannot be cancelled", 409);
+    let slot;
     if (item.slot) {
-      const slot = await Slot.findOneAndUpdate({ _id: item.slot }, { $inc: { revision: 1 } }, { session, returnDocument: "after" });
+      slot = await Slot.findOneAndUpdate({ _id: item.slot }, { $inc: { revision: 1 } }, { session, returnDocument: "after" });
       if (status === "Approved" && slot?.status === "Cancelled") v.fail("This availability was cancelled", 409);
     }
     item.status = status;
+    if (rejectionReason) item.rejectionReason = rejectionReason;
     if (["Rejected", "Cancelled"].includes(status)) { item.reservedSlot = undefined; item.activeReservation = false; }
-    item.history.push({ status, actor: req.user.id, at: new Date() });
-    item.notificationEvents = [...(item.notificationEvents || []), event(item.student, `Appointment status: ${status}.`), ...(item.staff ? [event(item.staff, `An appointment booking changed to ${status}.`)] : [])];
+    item.history.push({ status, ...(rejectionReason && { reason: rejectionReason }), actor: req.user.id, at: new Date() });
+    const schedule = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(item.date);
+    const summary = `Appointment status: ${status}. ${slot?.serviceName || slot?.title || "Staff appointment"} · ${schedule} (Asia/Colombo)${slot?.location ? " · " + slot.location : ""}${rejectionReason ? ". Reason: " + rejectionReason : ""}`;
+    item.notificationEvents = [...(item.notificationEvents || []), event(item.student, summary, { title: `Appointment ${status.toLowerCase()}` }), ...(item.staff ? [event(item.staff, `An appointment booking changed to ${status}.`)] : [])];
     await item.save({ session }); return item;
   });
   await tryFlush(Appointment, String(booking.student));

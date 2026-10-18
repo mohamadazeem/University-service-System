@@ -164,7 +164,7 @@ test("admin rejects bookings, filters statuses and views historical records with
     return route.fulfill({ json: { items, total: items.length, pages: items.length } });
   });
   await page.route("**/api/admin/appointments/booking", route => {
-    expect(route.request().postDataJSON()).toEqual({ status: "Rejected", expectedStatus: "Pending", expectedUpdatedAt: "2026-10-17T00:00:00.000Z" });
+    expect(route.request().postDataJSON()).toEqual({ status: "Rejected", rejectionReason: "Please choose another appointment time.", expectedStatus: "Pending", expectedUpdatedAt: "2026-10-17T00:00:00.000Z" });
     status = "Rejected";
     return route.fulfill({ json: { message: "Booking updated successfully." } });
   });
@@ -174,6 +174,7 @@ test("admin rejects bookings, filters statuses and views historical records with
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Not specified");
   await dialog.getByLabel("Status", { exact: true }).selectOption("Rejected");
+  await dialog.getByLabel("Rejection reason", { exact: true }).fill("Please choose another appointment time.");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await page.getByLabel("Filter by status").selectOption("Approved");

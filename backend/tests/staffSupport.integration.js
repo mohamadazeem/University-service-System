@@ -74,7 +74,7 @@ test("staff support: persistent booking and complaint lifecycles, concurrency, p
     let rebook = await call("/appointments", winner, "POST", { slot: published.slot._id, reason: prefix + " rebooking" });
     assert.equal(rebook.code, 201); owned.bookings.push(rebook.appointment._id);
     detail = await call("/staff/bookings/" + rebook.appointment._id, staff);
-    assert.equal((await call("/staff/bookings/" + rebook.appointment._id, staff, "PATCH", { status: "Rejected", expectedStatus: "Pending", expectedUpdatedAt: detail.item.updatedAt })).code, 200);
+    assert.equal((await call("/staff/bookings/" + rebook.appointment._id, staff, "PATCH", { status: "Rejected", rejectionReason: "Please choose another appointment time.", expectedStatus: "Pending", expectedUpdatedAt: detail.item.updatedAt })).code, 200);
     assert.equal((await Appointment.findById(rebook.appointment._id)).reservedSlot, undefined);
     await call("/admin/appointment-slots/" + published.slot._id, admin, "DELETE");
     assert.equal((await call("/appointments", winner, "POST", { slot: published.slot._id, reason: "Closed time" })).code, 409);

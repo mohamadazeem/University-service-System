@@ -1,10 +1,37 @@
 import { useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import useResource from "../hooks/useResource";
+import Modal from "../components/Modal";
+import { dateTime } from "../admin/adminUtils";
+import { appointmentDateTime } from "../utils/appointmentTime";
 import useAuth from "../auth/useAuth";
 import { errorMessage } from "../api/client";
 import useNotifications, { markNotificationRead, markAllNotificationsRead } from "../hooks/useNotifications";
 import NotificationItem from "../components/NotificationItem";
-import { LoadingError, Notice, Pagination } from "../admin/AdminUI";
+import { Badge, LoadingError, Notice, Pagination } from "../admin/AdminUI";
 import "../styles/notifications.css";
+
+export function RelatedNotificationDetails({ type }) {
+  const [params] = useSearchParams(), navigate = useNavigate(), location = useLocation();
+  const id = params.get("notification");
+  const valid = /^[a-f\d]{24}$/i.test(id || "");
+  const resource = useResource(valid ? `/notifications/${id}/related` : null, true);
+  const close = () => navigate(location.pathname, { replace: true });
+  if (!id) return null;
+  if (!valid || resource.status === 404) return <Notice>This record is no longer available. Your list is shown below. <Link to={location.pathname} replace>Dismiss</Link></Notice>;
+  if (resource.loading || resource.error) return <Modal title="Opening notification" onClose={close}><LoadingError resource={resource} /></Modal>;
+  if (resource.data.type !== type) return <Notice>Open this update from <Link to="/notifications">Notifications</Link> to view its related record.</Notice>;
+  const { item } = resource.data;
+  return <Modal title={type === "request" ? "Service request details" : type === "appointment" ? "Appointment details" : "Complaint details"} onClose={close}>
+    <div className="request-detail-heading"><Badge value={item.status} /><code>{item._id}</code></div>
+    <h3>{type === "request" ? item.service : type === "appointment" ? item.slot?.title || "Staff appointment" : item.subject}</h3>
+    <dl className="detail-list">
+      {type === "appointment" ? <><dt>Service</dt><dd>{item.slot?.serviceName || "Staff appointment"}</dd><dt>Staff</dt><dd>{item.staff?.name || "Unavailable account"}</dd><dt>Date &amp; time</dt><dd>{appointmentDateTime(item.date)}{item.slot?.endsAt && <> – {appointmentDateTime(item.slot.endsAt)}</>}<small>Asia/Colombo</small></dd><dt>Location</dt><dd>{item.slot?.location || "Not specified"}</dd><dt>Booking reason</dt><dd className="preserve-lines">{item.reason}</dd>{item.rejectionReason && <><dt>Rejection reason</dt><dd className="preserve-lines">{item.rejectionReason}</dd></>}{item.slot?.instructions && <><dt>Instructions</dt><dd className="preserve-lines">{item.slot.instructions}</dd></>}</> : <><dt>Description</dt><dd className="preserve-lines">{item.description}</dd><dt>Priority</dt><dd>{item.priority || "Normal"}</dd><dt>{type === "request" ? "Staff update" : "University response"}</dt><dd className="preserve-lines">{type === "request" ? item.staffComment || "No comments yet" : item.response || "Awaiting a response"}</dd></>}
+      <dt>Submitted</dt><dd>{dateTime(item.createdAt)}</dd><dt>Last updated</dt><dd>{dateTime(item.updatedAt)}</dd>
+    </dl>
+    <footer className="modal-actions"><button className="secondary" onClick={close}>Back to list</button></footer>
+  </Modal>;
+}
 export default function Notifications({ admin = false }) {
   const { user } = useAuth();
   return <InboxPage key={user.id || user._id} role={user.role} admin={admin} />;

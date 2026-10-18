@@ -8,7 +8,8 @@ function destination(item, role) {
     complaint: { student: "/complaints", staff: "/staff/complaints", admin: "/admin/complaints" },
     "staff-approval": { staff: "/staff/profile", admin: "/admin/staff-approvals" },
   };
-  return paths[item.entityType || item.type]?.[role];
+  const path = paths[item.entityType || item.type]?.[role];
+  return path && role === "student" && item.entityId ? `${path}?notification=${encodeURIComponent(item._id)}` : path;
 }
 export default function NotificationItem({ item, role, onRead, busy, onOpened }) {
   const navigate = useNavigate();
