@@ -6,7 +6,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  if ((user?.role === "staff" && (location.pathname === "/staff" || location.pathname.startsWith("/staff/"))) || location.pathname.startsWith("/admin") || ["/login", "/student/login", "/staff/login"].includes(location.pathname)) return null;
+  if ((user?.role === "staff" && (location.pathname === "/staff" || location.pathname.startsWith("/staff/"))) || location.pathname.startsWith("/admin") || ["/login", "/student/login", "/staff/login", "/register"].includes(location.pathname)) return null;
   return (
     <header className={`site-header ${user ? "authenticated-header" : ""}`}>
       <Link className="site-brand" to="/">

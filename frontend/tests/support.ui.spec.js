@@ -20,8 +20,8 @@ test("original homepage and unified login fit desktop, tablet and mobile", async
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/home-${width}.png`, fullPage: true });
     await page.locator(".home-hero").getByRole("link", { name: "Sign In", exact: true }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome to University Services");
-    await expect(page.locator(".login-welcome p")).toHaveText("Access university services, manage requests, and stay updated in one place.");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sign in to University Services");
+    await expect(page.locator(".login-welcome .login-intro")).toHaveText("Access your account to manage your requests, appointments and more.");
     await expect(page.getByRole("link", { name: "Services", exact: true })).toHaveAttribute("href", "/services");
     await expect(page.locator("form")).toHaveCount(1);
     await expect(page.getByRole("radiogroup", { name: "Sign in role" })).toBeVisible();
@@ -317,4 +317,29 @@ test("public footer has only working quick links, fits all sizes and stays outsi
   await page.route("**/api/staff/bookings?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
   await page.goto("/staff/bookings");
   await expect(page.locator(".staff-footer")).toHaveCount(1); await expect(footer).toHaveCount(0);
+});
+
+test("student registration matches the split design, fits mobile and validates confirmation before sending", async ({ page }) => {
+  let writes = 0;
+  await page.route("**/api/auth/register", async route => { writes++; await route.fulfill({ status: 400, json: { message: "Email already registered" } }); });
+  await page.goto("/register");
+  await expect(page.getByRole("heading", { name: "Create your student account", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to login" })).toHaveAttribute("href", "/student/login");
+  for (const width of [1536, 820, 390]) {
+    await page.setViewportSize({ width, height: 1024 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/registration-${width}.png`, fullPage: true });
+  }
+  await page.getByLabel("Full name", { exact: true }).fill("Test Student");
+  await page.getByLabel("Email address", { exact: true }).fill("test@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("Password123!");
+  await page.getByLabel("Confirm password", { exact: true }).fill("Different123!");
+  await page.getByRole("button", { name: "Show confirm password" }).click();
+  await expect(page.getByLabel("Confirm password", { exact: true })).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Create student account", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Passwords do not match"); expect(writes).toBe(0);
+  await page.getByLabel("Confirm password", { exact: true }).fill("Password123!");
+  await page.getByRole("button", { name: "Create student account", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("Email already registered"); expect(writes).toBe(1);
+  await expect(page.getByRole("button", { name: "Create student account", exact: true })).toBeEnabled();
 });

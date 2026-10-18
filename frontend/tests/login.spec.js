@@ -65,16 +65,16 @@ test("unified role selection, real student/admin sessions, registration, request
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/login");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Welcome to\s*University Services/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Sign in to\s*University Services/);
   await expect(page.locator("form")).toHaveCount(1);
   await expect(page.locator(".portal-option")).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "Student", exact: true })).toBeChecked();
   await page.keyboard.press("Tab");
-  await expect(page.locator(".auth-brand")).toBeFocused();
-  await expect(page.locator(".auth-brand")).toHaveCSS("outline-style", "solid");
+  await expect(page.locator(".login-story .registration-brand")).toBeFocused();
+  await expect(page.locator(".login-story .registration-brand")).toHaveCSS("outline-style", "solid");
   await page.getByRole("radio", { name: "Admin", exact: true }).check();
   await expect(page).toHaveURL(/\/admin\/login$/);
-  await expect(page.getByRole("heading", { name: "Sign in to your account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to University Services" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Create an account|Register for approval/ })).toHaveCount(0);
   await page.getByRole("radio", { name: "Student", exact: true }).check();
   await expect(page).toHaveURL(/\/student\/login$/);
@@ -92,6 +92,7 @@ test("unified role selection, real student/admin sessions, registration, request
   await page.getByLabel("Full name").fill("Portal Test Student");
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel(/^Password/).fill(password);
+  await page.getByLabel("Confirm password", { exact: true }).fill(password);
   await page.getByLabel("Student ID").fill(prefix);
   await page.getByRole("button", { name: "Create student account" }).click();
   await expect(page.getByRole("status")).toContainText("Registration successful");

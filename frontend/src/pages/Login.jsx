@@ -1,10 +1,11 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { GraduationCap, UsersRound, ShieldCheck } from "lucide-react";
+import { ArrowRight, CalendarDays, Eye, EyeOff, FileText, GraduationCap, Headphones, Info, LockKeyhole, Mail, UsersRound, ShieldCheck } from "lucide-react";
 import useAuth from "../auth/useAuth";
 import { errorMessage } from "../api/client";
 import ThemeToggle from "../components/ThemeToggle";
 import "../styles/login.css";
+import "../styles/register.css";
 
 const roles = {
   student: { label: "Student", path: "/student/login", dashboard: "/dashboard", icon: GraduationCap },
@@ -59,24 +60,21 @@ export default function Login() {
 
   return (
     <div className="portal-page unified-login-page">
-      <header className="portal-header">
-        <Link className="auth-brand" to="/">
-          <span className="brand-mark">U</span>University Services
-        </Link>
+      <aside className="registration-story login-story" aria-label="University Services">
+        <Link className="registration-brand" to="/"><span>U</span>University Services</Link>
+        <div className="registration-story-copy"><div className="registration-rule" /><h2>Connecting Students<br />to University Services.</h2><p>Your central platform for university services, requests, and support.</p></div>
+        <div className="registration-benefits">{[[FileText, "Access", "University Services"], [CalendarDays, "Book", "Appointments"], [Headphones, "Get", "Timely Support"]].map(([Icon, first, second]) => <div key={first}><span><Icon size={26} aria-hidden="true" /></span><p>{first}<br />{second}</p></div>)}</div>
+      </aside>
+      <main className="login-content">
+        <header className="login-panel-header">
         <nav className="login-nav" aria-label="Main navigation">
           <Link to="/services">Services</Link>
           {user && roles[user.role] && <Link to={roles[user.role].dashboard}>My dashboard</Link>}
           <ThemeToggle />
         </nav>
-      </header>
-      <main className="login-content">
-        <div className="login-welcome">
-          <h1>Welcome to University Services</h1>
-          <p>Access university services, manage requests, and stay updated in one place.</p>
-        </div>
+        </header>
         <section className="auth-card portal-login-card" aria-labelledby="login-title">
-          <h2 id="login-title">Sign in to your account</h2>
-          <p className="login-intro">Select your role to continue.</p>
+          <div className="login-welcome"><p className="eyebrow">WELCOME BACK</p><h1 id="login-title">Sign in to <br />University Services</h1><p className="login-intro">Access your account to manage your requests, appointments and more.</p></div>
           {location.state?.sessionRequired && <p className="notice" role="status">Please sign in to continue. Your session may have expired.</p>}
           <form onSubmit={submit} aria-busy={busy}>
             <fieldset disabled={busy}>
@@ -90,20 +88,21 @@ export default function Login() {
                 ))}
               </div>
               <label htmlFor="login-email">University email</label>
-              <input id="login-email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" maxLength={254} placeholder="name@university.edu" required />
+              <div className="login-icon-field"><Mail size={22} aria-hidden="true" /><input id="login-email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" maxLength={254} placeholder="Email address" required /></div>
               <label htmlFor="login-password">Password</label>
-              <div className="password-field">
-                <input id="login-password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={200} aria-describedby={message ? "login-error" : undefined} required />
-                <button type="button" className="password-toggle" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} aria-controls="login-password" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Hide" : "Show"}</button>
+              <div className="password-field login-icon-field"><LockKeyhole size={22} aria-hidden="true" />
+                <input id="login-password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={200} placeholder="Password" aria-describedby={message ? "login-error" : undefined} required />
+                <button type="button" className="password-toggle" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} aria-controls="login-password" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <Eye size={21} /> : <EyeOff size={21} />}</button>
               </div>
               {message && <div id="login-error" className="notice notice-error" role="alert">{message}</div>}
               <button className="full-width portal-submit" type="submit">
-                {busy ? <><span className="login-spinner" aria-hidden="true" /> Signing in…</> : "Sign In"}
+                {busy ? <><span className="login-spinner" aria-hidden="true" /> Signing in…</> : <>Sign In <ArrowRight size={21} aria-hidden="true" /></>}
               </button>
             </fieldset>
           </form>
           <div className="login-account-help">
-            {role === "student" && <p>New student? <Link to="/register">Create an account</Link></p>}
+            {role !== "admin" && <div className="registration-divider"><span>or</span></div>}
+            {role === "student" && <><p>Don't have an account? <Link to="/register">Create an account</Link></p><div className="login-student-note"><Info size={24} aria-hidden="true" /><p>This portal is for students to access and manage university services.</p></div></>}
             {role === "staff" && <>
               <p>New staff member? <Link to="/staff/register">Register for approval</Link></p>
               <p className="login-role-note">Staff accounts require administrator approval before signing in.</p>

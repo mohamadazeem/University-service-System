@@ -80,3 +80,35 @@
 @media (prefers-reduced-motion: reduce) {
   .login-spinner { animation: none; }
 }
+
+/* The shared sign-in page keeps the same form and role-based authentication. */
+.unified-login-page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: calc(100dvh - 32px); margin: 16px; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; box-shadow: 0 8px 30px #15325a08; }
+.public-shell .public-content > .unified-login-page { width: auto; min-height: calc(100dvh - 32px); }
+.unified-login-page .login-story { padding: clamp(32px, 5vw, 80px); }
+.unified-login-page .registration-story h2 { font-size: clamp(29px, 3.2vw, 48px); }
+.unified-login-page .registration-story-copy { margin-bottom: 240px; }
+.unified-login-page .registration-story-copy p { max-width: 470px; }
+.unified-login-page .login-content { min-width: 0; padding: 24px clamp(28px, 4.5vw, 76px) 44px; background: var(--surface); align-items: stretch; justify-content: flex-start; }
+.login-panel-header { width: 100%; display: flex; justify-content: flex-end; margin-bottom: 24px; }
+.unified-login-page .portal-login-card { width: 100%; max-width: 600px; padding: 0; margin: auto; border: 0; border-radius: 0; box-shadow: none; }
+.unified-login-page .login-welcome { width: 100%; max-width: none; text-align: left; margin: 0 0 26px; }
+.unified-login-page .login-welcome .eyebrow { color: var(--link); font-size: 12px; letter-spacing: 3px; font-weight: 700; margin: 0 0 14px; }
+.unified-login-page .login-welcome h1 { font-size: clamp(30px, 3.3vw, 48px); line-height: 1.16; letter-spacing: -1.5px; margin-bottom: 17px; }
+.unified-login-page .login-welcome .login-intro { max-width: 520px; margin: 0; font-size: clamp(15px, 1.5vw, 21px); line-height: 1.5; }
+.unified-login-page .portal-login-card form { margin-top: 0; }
+.unified-login-page .login-roles { margin-bottom: 24px; }
+.unified-login-page .login-icon-field { position: relative; margin-bottom: 20px; }
+.unified-login-page .login-icon-field > svg { position: absolute; left: 17px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.unified-login-page .login-icon-field input { min-height: 58px; padding: 14px 50px; margin: 0; font-size: 16px; border-radius: 10px; }
+.unified-login-page .portal-login-card #login-email { margin-bottom: 0; }
+.unified-login-page .password-toggle { min-width: 44px; display: grid; place-items: center; border-radius: 7px; padding: 8px; color: var(--muted); }
+.unified-login-page .portal-submit { min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 8px; border-radius: 10px; font-size: 18px; background: #073e91; color: white; }
+.unified-login-page .portal-submit:hover { background: #062f71; }
+.unified-login-page .login-account-help { margin-top: 0; font-size: 15px; }
+.unified-login-page .login-account-help .registration-divider { margin: 28px 0; }
+.login-student-note { display: flex; align-items: center; gap: 20px; padding: 22px; border: 1px solid var(--border); border-radius: 12px; background: var(--subtle); margin-top: 26px; text-align: left; color: var(--muted); line-height: 1.6; }
+.login-student-note > svg { flex-shrink: 0; box-sizing: content-box; padding: 12px; border-radius: 50%; background: var(--tint); color: var(--link); }
+.unified-login-page .login-role-note { margin-top: 24px; }
+@media (max-width: 1000px) { .unified-login-page { grid-template-columns: minmax(0, 44%) minmax(0, 56%); } .unified-login-page .login-story { padding: 36px 26px; } .unified-login-page .login-content { padding: 22px 28px 34px; } .unified-login-page .registration-benefits { margin-left: -14px; margin-right: -14px; gap: 8px; } .unified-login-page .registration-benefits p { font-size: 12px; } .login-student-note { padding: 16px; gap: 12px; font-size: 13px; } }
+@media (max-width: 760px) { .unified-login-page { grid-template-columns: 1fr; margin: 12px; min-height: auto; border-radius: 16px; } .unified-login-page .login-story { padding: 28px 24px; } .unified-login-page .registration-story-copy { margin: 24px 0 0; } .unified-login-page .registration-story h2 { font-size: 29px; } .unified-login-page .login-content { padding: 20px 24px 30px; } .login-panel-header { margin-bottom: 22px; } .unified-login-page .login-welcome h1 { max-width: none; margin-left: 0; margin-right: 0; font-size: 34px; } .unified-login-page .portal-login-card { padding: 0; } .unified-login-page .login-welcome .login-intro { font-size: 16px; } }
+@media (max-width: 390px) { .unified-login-page .login-content { padding-left: 18px; padding-right: 18px; } .unified-login-page .login-welcome h1 { font-size: 30px; } .unified-login-page .login-role { font-size: 10px; } .unified-login-page .login-role svg { width: 14px; } }
