@@ -13,7 +13,7 @@ const date = new Date(Date.now() + 7*86400000).toISOString().slice(0,10);
 test.beforeAll(async () => {
   await backend("./config/db")();
   const hash = await bcrypt.hash(password, 12);
-  for (const [role, key] of [["staff","staff"], ["student","student"], ["student","second"]]) {
+  for (const [role, key] of [["admin","admin"], ["staff","staff"], ["student","student"], ["student","second"]]) {
     const user = await User.create({ name: "Availability " + key, email: email(key), password: hash, role, ...(role === "staff" ? { staffId: prefix.slice(0, 50), approvalStatus: "approved" } : { studentId: prefix + key }) });
     users.push(user._id); if (role === "staff") staff = user;
   }
@@ -30,11 +30,11 @@ test.afterAll(async () => {
   } finally { await mongoose.disconnect(); }
 });
 async function login(page, key) {
-  const role = key === "staff" ? "staff" : "student";
+  const role = ["staff", "admin"].includes(key) ? key : "student";
   await page.goto(`/${role}/login`); await page.evaluate(() => localStorage.clear()); await page.reload();
   await page.locator("#login-email").fill(email(key)); await page.locator("#login-password").fill(password);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page).toHaveURL(role === "staff" ? /\/staff$/ : /\/dashboard$/);
+  await expect(page).toHaveURL(role === "staff" ? /\/staff$/ : role === "admin" ? /\/admin$/ : /\/dashboard$/);
 }
 async function staffSlots(page) {
   await page.goto("/staff/appointments");
@@ -44,10 +44,10 @@ async function discover(page) {
   await page.goto("/appointments"); await page.getByLabel("Search availability", { exact: true }).fill(prefix);
   await page.getByLabel("University service", { exact: true }).selectOption(String(service._id));
 }
-test("staff publishes availability, students book and cancel capacity, staff edits and cancels with notifications", async ({ page }) => {
+test("staff publishes, students book, admin reviews, staff edits and cancels with notifications", async ({ page }) => {
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   await login(page, "staff");
-  await page.getByRole("link", { name: "Appointments", exact: true }).click();
+  await page.getByRole("link", { name: "Manage Time Slots", exact: true }).click();
   await expect(page).toHaveURL(/\/staff\/appointments$/);
   await page.getByRole("button", { name: "Create Availability", exact: true }).click();
   await page.getByLabel("Service category", { exact: true }).selectOption("Availability Test Services");
@@ -97,6 +97,31 @@ test("staff publishes availability, students book and cancel capacity, staff edi
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".appointment-card")).toHaveCount(0);
   expect(await Appointment.countDocuments({ slot: slot._id, status: "Pending" })).toBe(2);
+  await login(page, "admin");
+  await page.goto("/admin/appointment-slots");
+  await expect(page).toHaveURL(/\/admin\/appointments$/);
+  const navigation = page.getByRole("navigation", { name: "Admin navigation" });
+  await expect(navigation.getByRole("link", { name: "Availability", exact: true })).toHaveCount(0);
+  await expect(navigation.getByRole("link", { name: "Appointments", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Publish availability", exact: true })).toHaveCount(0);
+  const booking = page.locator(".support-record").filter({ hasText: email("student") });
+  await expect(booking).toHaveCount(1);
+  for (const text of [prefix, "Availability staff", "Student Services Building / Room 204", "09:00", "10:00", "Pending"]) await expect(booking).toContainText(text);
+  await booking.getByRole("button", { name: "View details", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Please advise on my service request.");
+  await expect(page.getByRole("dialog")).toContainText("Bring student ID.");
+  await page.getByRole("dialog").getByRole("button", { name: "Review", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("Status", { exact: true }).selectOption("Approved");
+  await page.getByRole("dialog").getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(booking.locator(".badge-approved").first()).toBeVisible();
+  expect((await Appointment.findOne({ slot: slot._id, student: users[2] })).status).toBe("Approved");
+  for (const width of [820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/admin-appointments-${width}.png`, fullPage: true });
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
   await login(page, "staff"); await staffSlots(page);
   await page.getByRole("button", { name: "View & manage", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText(email("student"));

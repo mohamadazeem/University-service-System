@@ -10,7 +10,7 @@ const links = [
   ["Pending Requests", "/staff/requests?status=Pending", Clock3],
   ["In Progress", "/staff/requests?status=Processing", LoaderCircle],
   ["Completed Requests", "/staff/requests?status=Completed", CircleCheck],
-  ["Appointments", "/staff/appointments", CalendarDays],
+  ["Manage Time Slots", "/staff/appointments", CalendarDays],
   ["Bookings", "/staff/bookings", CalendarDays],
   ["My Assigned Complaints", "/staff/complaints", MessageSquare],
 ];

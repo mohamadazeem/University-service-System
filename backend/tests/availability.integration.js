@@ -54,6 +54,25 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     assert.equal(details.bookings.length, 2); assert.equal(details.slot.remaining, 0);
     assert.ok(details.bookings.every(item => item.student.password === undefined));
     assert.equal((await call("/admin/appointment-slots/" + id, admin)).code, 200);
+    // The central Admin page receives slot and account details and reviews bookings.
+    const adminList = await call("/admin/appointments?q=" + bookingId, admin);
+    assert.equal(adminList.code, 200);
+    assert.equal(adminList.items.length, 1);
+    assert.equal(adminList.items[0].slot.serviceName, service.name);
+    assert.equal(adminList.items[0].slot.location, "University Services Building / Room 204");
+    assert.equal(adminList.items[0].slot.startsAt, body.startsAt);
+    assert.equal(adminList.items[0].slot.endsAt, body.endsAt);
+    assert.ok(adminList.items[0].staff.name);
+    assert.ok(adminList.items[0].student.email);
+    const otherWinnerIndex = races.findIndex((result, index) => result.code === 201 && index !== winnerIndex);
+    const reviewId = races[otherWinnerIndex].appointment._id;
+    const review = await Appointment.findById(reviewId);
+    const approval = { status: "Approved", expectedStatus: "Pending", expectedUpdatedAt: review.updatedAt.toISOString() };
+    assert.equal((await call("/admin/appointments/" + reviewId, admin, "PATCH", approval)).code, 200);
+    assert.equal((await call("/admin/appointments/" + reviewId, admin, "PATCH", approval)).code, 409);
+    const approved = await Appointment.findById(reviewId);
+    assert.equal((await call("/admin/appointments/" + reviewId, admin, "PATCH", { status: "Rejected", expectedStatus: "Approved", expectedUpdatedAt: approved.updatedAt.toISOString() })).code, 200);
+    assert.equal((await call("/appointments", students[otherWinnerIndex], "POST", { slot: id, reason: "Rebook capacity released by admin rejection" })).code, 201);
     assert.equal((await call("/staff/appointment-slots/" + id, staff, "PATCH", { startsAt: new Date(start.getTime()+60000).toISOString(), expectedUpdatedAt: details.slot.updatedAt })).code, 409);
     let booking = await Appointment.findById(bookingId);
     const cancellation = { status: "Cancelled", expectedStatus: "Pending", expectedUpdatedAt: booking.updatedAt.toISOString() };

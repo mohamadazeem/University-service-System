@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
 import AuthProvider from "./auth/AuthProvider";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -70,7 +70,7 @@ export default function App() {
               <Route path="staff-approvals" element={<StaffApprovals />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="appointments" element={<Support key="admin-appointments" kind="appointments" admin />} />
-              <Route path="appointment-slots" element={<AppointmentAvailability admin />} />
+              <Route path="appointment-slots" element={<Navigate to="/admin/appointments" replace />} />
               <Route path="complaints" element={<AdminComplaints />} />
               <Route path="notifications" element={<Notifications admin />} />
             </Route>

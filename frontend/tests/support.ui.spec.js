@@ -122,14 +122,8 @@ test("student books, submits a complaint and reads notifications", async ({ page
   await expect(page.getByRole("heading", { name: "0 unread" })).toBeVisible();
   expect(errors).toEqual([]);
 });
-test("admin publishes availability, reviews complaints and navigates mobile sidebar", async ({ page }) => {
+test("admin centralizes appointments, reviews complaints and navigates mobile sidebar", async ({ page }) => {
   await session(page, admin);
-  await page.route("**/api/admin/staff", route => route.fulfill({ json: { staff: [slot.staff] } }));
-  await page.route("**/api/appointments/availability**", route => route.fulfill({ json: { items: [slot], total: 1, pages: 1 } }));
-  await page.route("**/api/admin/appointment-slots", async route => {
-    expect(route.request().postDataJSON().staff).toBe(slot.staff._id);
-    await route.fulfill({ status: 201, json: { slot } });
-  });
   await page.route("**/api/admin/appointments?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
   let status = "Pending";
   const complaint = () => ({ _id: "complaint", subject: "A concern", description: "Review details", status, student, priority: "Medium", createdAt: new Date().toISOString(), updatedAt: "2026-10-17T00:00:00.000Z" });
@@ -144,11 +138,8 @@ test("admin publishes availability, reviews complaints and navigates mobile side
     await route.fulfill({ json: { items: [complaint()], total: 1, pages: 1, statuses: ["Pending", "In Progress", "Resolved"], departments: [], priorities: ["Medium", "High", "Urgent"] } });
   });
   await page.goto("/admin/appointments");
-  await page.getByRole("button", { name: "Publish availability" }).click();
-  await page.getByLabel("Staff member").selectOption(slot.staff._id);
-  await page.getByLabel("Start date and time").fill("2099-01-20T09:00");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator(".notice-success")).toHaveText("Saved successfully.");
+  await expect(page.getByRole("button", { name: "Publish availability" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Admin navigation" }).getByRole("link", { name: "Availability", exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open navigation" }).click();
   await page.getByRole("link", { name: "Complaints Management", exact: true }).click();
@@ -162,23 +153,36 @@ test("admin publishes availability, reviews complaints and navigates mobile side
   await page.screenshot({ path: "test-results/admin-complaints-mobile.png", fullPage: true });
 });
 
-test("empty staff setup explains disabled publishing and refreshes after staff is added", async ({ page }) => {
+test("admin rejects bookings, filters statuses and views historical records with missing slots", async ({ page }) => {
   await session(page, admin);
-  let staff = [];
-  await page.route("**/api/admin/staff", route => route.fulfill({ json: { staff } }));
-  await page.route("**/api/appointments/availability**", route => route.fulfill({ json: { items: [] } }));
-  await page.route("**/api/admin/appointments?**", route => route.fulfill({ json: { items: [], total: 0, pages: 0 } }));
-  await page.goto("/admin/appointments");
-  await expect(page.getByRole("heading", { name: "Add a staff member to enable bookings" })).toBeVisible();
-  await page.getByRole("button", { name: "Publish availability" }).click();
+  let status = "Pending";
+  const booking = () => ({ _id: "booking", status, student, slot: null, staff: null, date: slot.startsAt, reason: "Historical booking", updatedAt: "2026-10-17T00:00:00.000Z", createdAt: "2026-10-17T00:00:00.000Z" });
+  await page.route("**/api/admin/appointments?**", route => {
+    const filter = new URL(route.request().url()).searchParams.get("status");
+    const items = !filter || filter === status ? [booking()] : [];
+    return route.fulfill({ json: { items, total: items.length, pages: items.length } });
+  });
+  await page.route("**/api/admin/appointments/booking", route => {
+    expect(route.request().postDataJSON()).toEqual({ status: "Rejected", expectedStatus: "Pending", expectedUpdatedAt: "2026-10-17T00:00:00.000Z" });
+    status = "Rejected";
+    return route.fulfill({ json: { message: "Booking updated successfully." } });
+  });
+  await page.goto("/admin/appointment-slots");
+  await expect(page).toHaveURL(/\/admin\/appointments$/);
+  await page.getByRole("button", { name: "Review", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("No active staff accounts are available.", { exact: false })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: "Manage staff accounts" })).toHaveAttribute("href", "/admin/users");
-  await expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
-  staff = [slot.staff];
-  await dialog.getByRole("button", { name: "Refresh staff list" }).click();
-  await dialog.getByLabel("Staff member").selectOption(slot.staff._id);
-  await expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+  await expect(dialog).toContainText("Not specified");
+  await dialog.getByLabel("Status", { exact: true }).selectOption("Rejected");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByLabel("Filter by status").selectOption("Approved");
+  await expect(page.getByText("No appointments match this view.")).toBeVisible();
+  await page.getByLabel("Filter by status").selectOption("Rejected");
+  await expect(page.locator(".support-record")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Review", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "View details", exact: true }).click();
+  await expect(dialog).toContainText("Historical booking");
+  await expect(dialog).toContainText("Rejected");
 });
 
 test("theme follows the system, persists a choice and covers public pages", async ({ page }) => {
@@ -248,9 +252,7 @@ test("saved dark theme covers student and administrator panels and dialogs", asy
   await page.goto("/admin/appointments");
   await expect(page.locator(".admin-shell")).toHaveCSS("background-color", "rgb(13, 22, 36)");
   await expect(page.locator(".admin-topbar")).toHaveCSS("background-color", "rgb(21, 34, 53)");
-  await page.getByRole("button", { name: "Publish availability" }).click();
-  await expect(page.getByRole("dialog")).toHaveCSS("background-color", "rgb(21, 34, 53)");
-  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Publish availability" })).toHaveCount(0);
   await page.getByRole("button", { name: "Switch to light mode" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });

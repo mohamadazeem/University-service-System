@@ -32,5 +32,9 @@
 .badge-draft { background: var(--subtle); color: var(--muted); }
 .badge-published { background: var(--success-bg); color: var(--success-text); }
 .badge-closed { background: var(--subtle); color: var(--muted); }
+.appointment-details dd { min-width: 0; overflow-wrap: anywhere; }
+.appointment-details small { display: block; color: var(--muted); margin-top: 4px; }
+.admin-appointments .page-heading > div:first-child { min-width: 0; }
+.admin-appointments .support-record .panel-heading { flex-wrap: wrap; gap: 12px; }
 @media(max-width: 1200px) { .appointment-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media(max-width: 650px) { .appointment-grid { grid-template-columns: 1fr; gap: 14px; } .appointment-filters { padding: 16px; gap: 12px; } .appointment-filters label:first-child { min-width: 100%; } .appointment-card { padding: 20px; } .appointment-discovery > .page-heading { align-items: flex-start; } .appointment-booking { padding: 18px; } }
