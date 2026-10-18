@@ -21,10 +21,19 @@ export function localApi(target, backendPort) {
       }
     }
     console.log("Starting the local API and waiting for MongoDB...");
-    child = spawn(process.execPath, ["server.js"], {
+    const watcher = fileURLToPath(new URL("../backend/node_modules/nodemon/bin/nodemon.js", import.meta.url));
+    child = spawn(process.execPath, [watcher, "--watch", ".", "--ext", "js,json", "--ignore", "**/node_modules/**", "--ignore", "**/tests/**", "server.js"], {
       cwd: backend, env: process.env, stdio: ["ignore", "pipe", "inherit"],
     });
-    const stop = () => { if (child && !child.killed) child.kill(); };
+    let stopped = false;
+    const stop = () => {
+      if (stopped || !child?.pid || child.exitCode !== null) return;
+      stopped = true;
+      // Windows must stop the watcher and its API child together.
+      if (process.platform === "win32") {
+        spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+      } else child.kill();
+    };
     process.once("exit", stop);
     server.httpServer?.once("close", stop);
     await new Promise((resolve, reject) => {

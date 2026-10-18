@@ -20,10 +20,19 @@ function stop(code = 0) {
   if (stopping) return;
   stopping = true;
   process.exitCode = code;
-  for (const child of children) child.kill();
+  for (const child of children) {
+    if (!child.pid || child.exitCode !== null) continue;
+    if (process.platform === "win32") {
+      spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+    } else child.kill();
+  }
 }
 function launch(file, cwd, env, output = "inherit") {
-  const child = spawn(process.execPath, [file], {
+  const args = file === path.join(backend, "server.js")
+    ? [path.join(backend, "node_modules", "nodemon", "bin", "nodemon.js"), "--watch", backend,
+      "--ext", "js,json", "--ignore", "**/node_modules/**", "--ignore", "**/tests/**", file]
+    : [file];
+  const child = spawn(process.execPath, args, {
     cwd, env: { ...process.env, ...env }, stdio: ["inherit", output, "inherit"],
   });
   children.push(child);
