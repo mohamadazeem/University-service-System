@@ -102,6 +102,8 @@ This starts the API first, waits for MongoDB to connect, then starts the website
 
 The frontend uses a fixed port and reports a conflict instead of silently changing the website address. The launcher uses `/api` for local development. The frontend preview also proxies `/api` to `API_PROXY_TARGET`; deployed hosting still requires the API configuration described above.
 
+You can also run `npm.cmd run dev` from `frontend` alone: Vite reads the backend port, starts the local API automatically if needed, and waits for MongoDB before serving the website. It reuses an already running API and stops an API it started when Vite closes. An explicit remote `API_PROXY_TARGET` remains externally managed.
+
 Alternatively, start each server separately:
 
 Backend terminal:
@@ -118,7 +120,7 @@ cd frontend
 npm.cmd run dev
 ```
 
-Open `http://localhost:5173`. For a frontend production build, run `npm.cmd run build`; `npm.cmd run preview` uses the configured API proxy and still requires the backend to be running.
+Open `http://localhost:5173`. For a frontend production build, run `npm.cmd run build`; `npm.cmd run preview` also starts the local API when needed. A deployed site requires an always-running hosted backend and an accessible MongoDB database; a browser bookmark cannot start local programs after the computer restarts.
 
 ### Backend startup or login fails
 
