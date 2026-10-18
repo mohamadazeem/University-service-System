@@ -1,69 +1,16 @@
-﻿.student-dashboard.page { width: 100%; max-width: 1440px; padding: 32px 32px 40px; }
-.dashboard-welcome { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 26px; }
-.dashboard-welcome .eyebrow { font-size: 11px; letter-spacing: 1.8px; margin: 0 0 8px; }
-.dashboard-welcome h1 { font-size: clamp(26px, 2.3vw, 34px); letter-spacing: -.8px; margin: 0 0 9px; overflow-wrap: anywhere; }
-.dashboard-welcome .muted { font-size: 14px; margin: 0; line-height: 1.6; }
-.dashboard-date { display: grid; gap: 6px; text-align: right; flex-shrink: 0; font-size: 12px; color: var(--muted); }
-.dashboard-date span { color: var(--heading); font-weight: 600; }
-.dashboard-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
-.dashboard-stat { display: flex; flex-direction: column; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 3px 10px #102a4904; color: var(--heading); }
-.dashboard-stat:hover { border-color: var(--link); }
-.dashboard-stat-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; }
-.dashboard-stat-heading svg { color: var(--link); flex-shrink: 0; }
-.dashboard-stat strong { font-size: 32px; line-height: 1.2; margin: 12px 0 6px; letter-spacing: -1px; }
-.dashboard-stat small { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(320px, 1fr); gap: 24px; align-items: start; }
-.dashboard-main, .dashboard-side { min-width: 0; }
-.dashboard-side { display: grid; gap: 22px; }
-.dashboard-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.student-dashboard h2 { font-size: 18px; line-height: 1.4; margin: 0; letter-spacing: -.3px; }
-.dashboard-section-heading h2 { display: flex; align-items: center; gap: 8px; }
-.dashboard-section-heading > a, .dashboard-section-heading > span { font-size: 12px; }
-.dashboard-section-heading > a { white-space: nowrap; font-weight: 600; }
-.dashboard-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.dashboard-action { position: relative; display: flex; flex-direction: column; padding: 18px; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; color: var(--heading); }
-.dashboard-action:hover { border-color: var(--link); background: var(--subtle); }
-.dashboard-action-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 9px; background: var(--tint); color: var(--link); margin-bottom: 14px; }
-.dashboard-action strong { font-size: 14px; }
-.dashboard-action p { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 7px 0 0; }
-.dashboard-action-arrow { position: absolute; top: 28px; right: 16px; color: var(--muted); }
-.student-dashboard .appointment-discovery { margin: 28px 0 20px; }
-.student-dashboard .appointment-discovery .page-heading { gap: 12px; align-items: center; margin-bottom: 16px; }
-.student-dashboard .appointment-discovery .text-link { font-size: 12px; white-space: nowrap; }
-.student-dashboard .appointment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.student-dashboard .appointment-card { padding: 20px; }
-.student-dashboard .appointment-card h2 { font-size: 16px; }
-.student-dashboard .appointment-fact { font-size: 13px; line-height: 1.5; }
-.student-dashboard .appointment-card footer button { min-height: 42px; font-size: 13px; }
-.dashboard-side .panel { margin: 0; overflow: hidden; border-radius: 12px; }
-.dashboard-side .dashboard-section-heading { padding: 18px; margin: 0; border-bottom: 1px solid var(--border); }
-.dashboard-side .notification-item { padding: 16px 18px; }
-.dashboard-side .notification-item p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.6; }
-.dashboard-empty { padding: 24px 18px; color: var(--muted); font-size: 13px; line-height: 1.7; margin: 0; }
-.dashboard-empty > svg { color: var(--link); }
-.dashboard-request-list { list-style: none; margin: 0; padding: 0; }
-.dashboard-request-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
-.dashboard-request-list li:last-child { border: 0; }
-.dashboard-request-list li > div { min-width: 0; }
-.dashboard-request-list strong { display: block; font-size: 13px; overflow-wrap: anywhere; line-height: 1.5; }
-.dashboard-request-list time { display: block; font-size: 11px; color: var(--muted); margin-top: 5px; }
-.dashboard-request-list .badge { flex-shrink: 0; font-size: 11px; }
-.dashboard-support { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px 0; border-top: 1px solid var(--border); font-size: 13px; }
-.dashboard-support > span { color: var(--muted); }
-.dashboard-support a { display: inline-flex; align-items: center; gap: 6px; }
-.student-dashboard a:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; }
-.public-shell:has(.student-dashboard) .site-header nav > a.active { background: var(--tint); border-radius: 7px; padding: 8px 10px; }
-.public-shell:has(.student-dashboard) .footer-main { padding-top: 18px; padding-bottom: 16px; align-items: center; }
-.public-shell:has(.student-dashboard) .footer-brand .brand-mark { width: 36px; height: 36px; font-size: 24px; }
-.public-shell:has(.student-dashboard) .footer-main p { font-size: 12px; }
-.public-shell:has(.student-dashboard) .footer-copyright { padding-top: 10px; padding-bottom: 10px; }
-@media (min-width: 1600px) { .student-dashboard .appointment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 1100px) { .dashboard-columns { grid-template-columns: minmax(0, 1fr); } .dashboard-side { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } .dashboard-date { display: none; } }
-@media (max-width: 760px) { .student-dashboard.page { padding: 24px 20px 32px; } .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .dashboard-stat { padding: 16px; } .dashboard-side { grid-template-columns: 1fr; } .dashboard-actions { grid-template-columns: 1fr; gap: 10px; } .dashboard-action { padding: 16px 44px 16px 68px; } .dashboard-action-icon { position: absolute; left: 16px; top: 18px; margin: 0; } .dashboard-action-arrow { top: 30px; } .student-dashboard .appointment-discovery .page-heading { flex-wrap: wrap; } }
-@media (max-width: 480px) { .student-dashboard .appointment-grid { grid-template-columns: 1fr; } .dashboard-stat-heading { font-size: 12px; } .dashboard-stat small { font-size: 11px; } .dashboard-stat-heading svg { width: 16px; } }
-.public-shell:has(.student-dashboard) .footer-main,
-.public-shell:has(.student-dashboard) .footer-copyright { width: min(1440px, 100%); padding-left: 32px; padding-right: 32px; }
+﻿/* Student workspace reuses the staff shell, metrics, filters, table and responsive rules. */
+.student-appointment-metric { display: block; height: 100%; }
+.student-request-panel .student-request-filters { grid-template-columns: minmax(0, 2fr) minmax(140px, 1fr) auto; }
+.student-request-filters > label:nth-last-of-type(1) { grid-column: auto; max-width: none; }
+.student-request-filters .filter-reset { grid-column: auto; }
+.student-dashboard th:last-child { width: 12%; }
+.student-workspace .staff-content > .page { max-width: none; }
+@media (min-width: 1101px) { .student-dashboard > .staff-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
-  .public-shell:has(.student-dashboard) .footer-main,
-  .public-shell:has(.student-dashboard) .footer-copyright { padding-left: 20px; padding-right: 20px; }
+  .student-request-panel .student-request-filters { grid-template-columns: minmax(0, 1fr); }
+  .student-request-filters .staff-search { grid-column: auto; }
+  .student-request-filters .filter-reset { grid-column: auto; justify-self: stretch; }
+  .student-dashboard > .page-heading { flex-wrap: wrap; }
+  .student-dashboard > .page-heading .button-row { flex-wrap: wrap; }
+  .student-dashboard .staff-support-overview .staff-metrics { grid-template-columns: 1fr; }
 }

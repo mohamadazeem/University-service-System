@@ -100,9 +100,9 @@ test("unified role selection, real student/admin sessions, registration, request
   await expect(page).toHaveURL(/\/student\/login$/);
   await signIn(page, email);
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: "Welcome, Portal Test Student" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Student Dashboard" })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Welcome, Portal Test Student" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Student Dashboard" })).toBeVisible();
   await page.goto("/admin/users");
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto("/request-service");
@@ -112,8 +112,8 @@ test("unified role selection, real student/admin sessions, registration, request
   await expect(page.getByRole("status")).toContainText("submitted successfully");
   await page.getByRole("link", { name: /Track your request/ }).click();
   await expect(page.getByRole("cell", { name: "Temporary portal browser test request", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await page.locator(".staff-nav-bottom").getByRole("button", { name: "Logout" }).click();
+  await expect(page).toHaveURL(/\/student\/login$/);
   expect(await page.evaluate(() => localStorage.getItem("token"))).toBeNull();
   await page.goto("/admin/users");
   await expect(page).toHaveURL(/\/admin\/login$/);

@@ -11,7 +11,7 @@ export default function MyRequests() {
     (row) =>
       (!status || row.status === status) &&
       [row.service, row._id, row.description].some((value) =>
-        value.toLowerCase().includes(search.toLowerCase()),
+        String(value || "").toLowerCase().includes(search.toLowerCase()),
       ),
   );
   return (
