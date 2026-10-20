@@ -96,3 +96,42 @@ test("student uses server expiry time even with an incorrect device clock", asyn
   await expect(page.getByRole("button", { name: "Confirm booking", exact: true })).toBeDisabled();
   await expect(page.getByRole("dialog")).toContainText("This slot is no longer available");
 });
+
+test("three different slots can be booked while only booked cards are disabled; cancellation refreshes them", async ({ page }) => {
+  await session(page, "student");
+  const catalogue = [slot, { ...slot, _id: "444444444444444444444444", title: "Student ID guidance" }, { ...slot, _id: "555555555555555555555555", title: "Certificate guidance" }];
+  const bookings = [];
+  await page.route("**/api/appointments/availability?**", route => route.fulfill({ json: {
+    items: catalogue.map(item => ({ ...item, alreadyBooked: bookings.some(booking => booking.slot._id === item._id && booking.status !== "Cancelled") })), total: 3, pages: 1,
+  } }));
+  await page.route(/\/api\/appointments(?:\?|$)/, async route => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON();
+      expect(bookings.some(booking => booking.slot._id === body.slot && booking.status !== "Cancelled")).toBe(false);
+      bookings.push({ _id: "booking" + bookings.length, slot: catalogue.find(item => item._id === body.slot), date: slot.startsAt, reason: body.reason, status: "Pending", updatedAt: slot.updatedAt, createdAt: new Date().toISOString() });
+      return route.fulfill({ status: 201, json: { message: "Appointment booked successfully. Awaiting staff approval." } });
+    }
+    await route.fulfill({ json: { items: bookings, total: bookings.length, pages: 1 } });
+  });
+  await page.route("**/api/appointments/booking0", async route => {
+    expect(route.request().postDataJSON().status).toBe("Cancelled");
+    bookings[0].status = "Cancelled";
+    await route.fulfill({ json: { message: "Cancelled" } });
+  });
+  await page.goto("/appointments");
+  for (const [index, item] of catalogue.entries()) {
+    const card = page.locator(".appointment-card").filter({ hasText: item.title });
+    await expect(card.getByRole("button", { name: "Book Appointment", exact: true })).toBeEnabled();
+    await card.getByRole("button", { name: "Book Appointment", exact: true }).click();
+    await page.getByRole("dialog").getByLabel("Reason", { exact: true }).fill("Service guidance");
+    await page.getByRole("button", { name: "Confirm booking", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Already Booked", exact: true })).toHaveCount(index + 1);
+    await expect(card.getByRole("button", { name: "Already Booked", exact: true })).toBeDisabled();
+  }
+  await expect(page.getByRole("region", { name: "Active appointments", exact: true }).locator(".appointment-booking")).toHaveCount(3);
+  await expect(page.getByText("You already have an active appointment. Complete or cancel it before booking another.", { exact: true })).toHaveCount(0);
+  await page.getByRole("region", { name: "Active appointments", exact: true }).getByRole("button", { name: "Cancel booking", exact: true }).first().click();
+  await page.getByRole("button", { name: "Confirm cancellation", exact: true }).click();
+  await expect(page.locator(".appointment-card").filter({ hasText: slot.title }).getByRole("button", { name: "Book Appointment", exact: true })).toBeEnabled();
+  await expect(page.getByRole("region", { name: "Appointment history", exact: true })).toContainText("Cancelled");
+});

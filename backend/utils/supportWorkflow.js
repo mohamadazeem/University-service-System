@@ -1,6 +1,7 @@
 ﻿const appointments = {
   Pending: ["Approved", "Rejected", "Cancelled"],
-  Approved: ["Completed", "Rejected", "Cancelled"],
+  Approved: ["In Progress", "Completed", "Rejected", "Cancelled"],
+  "In Progress": ["Completed", "Cancelled"],
   Rejected: [], Completed: [], Cancelled: [],
 };
 const complaints = {

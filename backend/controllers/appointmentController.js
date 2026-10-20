@@ -7,7 +7,7 @@ const v = require("../utils/validation");
 const { event } = require("../utils/notificationEvent");
 const { tryFlush } = require("../utils/notifications");
 const { appointments: transitions } = require("../utils/supportWorkflow");
-const occupiedStatuses = ["Pending", "Approved", "Completed"];
+const { activeStatuses, occupiedStatuses } = require("../utils/appointmentPolicy");
 const slotScope = user => user.role === "staff" ? { staff: user.id } : {};
 const { endTime, unexpired, expired, status: publicStatus } = require("../utils/availabilityTime");
 const capacity = slot => slot.capacity || 1;
@@ -95,7 +95,7 @@ async function enriched(items) {
   if (!items.length) return [];
   const counts = await Appointment.aggregate([{ $match: { slot: { $in: items.map(item => item._id) }, status: { $in: occupiedStatuses } } }, { $group: {
     _id: "$slot", total: { $sum: 1 },
-    confirmed: { $sum: { $cond: [{ $in: ["$status", ["Approved", "Completed"]] }, 1, 0] } },
+    confirmed: { $sum: { $cond: [{ $in: ["$status", ["Approved", "In Progress", "Completed"]] }, 1, 0] } },
     pending: { $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] } },
   } }]);
   const byId = new Map(counts.map(item => [String(item._id), item]));
@@ -142,8 +142,14 @@ exports.list = discovery => async (req, res) => {
     ]);
     return res.json({ items: await enriched(records), total, page: p.page, pages: Math.ceil(total / p.limit), serverNow: new Date().toISOString() });
   }
+  // Attendance and reservation history affect only this student's catalogue.
+  const ownBookings = req.user.role === "student" ? await Appointment.find({ student: req.user.id, status: { $in: occupiedStatuses } }).select("slot status") : [];
+  const bookedSlots = new Set(ownBookings.filter(booking => booking.slot).map(booking => String(booking.slot)));
+  const excluded = ownBookings.filter(booking => booking.slot && booking.status === "Completed").map(booking => booking.slot);
+  if (excluded.length) filter._id = { $nin: excluded };
   let items = await enriched(await Slot.find(filter).populate(slotPopulate).sort({ startsAt: 1, _id: 1 }));
   if (discovery) items = items.filter(item => item.remaining > 0 && item.status === "Published" && new Date(item.endsAt) > new Date());
+  items = items.map(item => ({ ...item, alreadyBooked: bookedSlots.has(String(item._id)) }));
   const total = items.length;
   res.json({ items: items.slice(p.skip, p.skip + p.limit), total, page: p.page, pages: Math.ceil(total / p.limit), serverNow: new Date().toISOString() });
 };
@@ -167,7 +173,7 @@ exports.update = async (req, res) => {
     if (action === "cancel" || action === "delete") {
       slot.status = "Cancelled"; slot.active = false;
       if (action === "delete") slot.deletedAt = new Date();
-      const active = await Appointment.find({ slot: slot._id, status: { $in: ["Pending", "Approved"] } }).select("+notificationEvents").session(session);
+      const active = await Appointment.find({ slot: slot._id, status: { $in: activeStatuses } }).select("+notificationEvents").session(session);
       if (active.length) await Appointment.bulkWrite(active.map(booking => ({ updateOne: {
         filter: { _id: booking._id }, update: {
           $set: { status: "Cancelled", activeReservation: false }, $unset: { reservedSlot: 1 },
@@ -194,7 +200,7 @@ exports.update = async (req, res) => {
       if (bookings.length && (String(values.service || "") !== String(slot.service || "") || values.startsAt.getTime() !== slot.startsAt.getTime() || values.endsAt.getTime() !== endTime(slot).getTime() || values.capacity !== capacity(slot) || values.status !== publicStatus(slot))) v.fail("Booked availability cannot change its service, schedule, capacity or publication status. Cancel it and publish a replacement.", 409);
       await checkOverlap(slot.staff, values.startsAt, values.endsAt, slot._id, session);
       Object.assign(slot, values);
-      const active = bookings.filter(item => ["Pending", "Approved"].includes(item.status));
+      const active = bookings.filter(item => activeStatuses.includes(item.status));
       if (active.length) await Appointment.bulkWrite(active.map(booking => ({ updateOne: {
         filter: { _id: booking._id }, update: { $push: { notificationEvents: { $each: [event(booking.student, "Your appointment details changed. Check the updated location and instructions in My Appointments."), event(slot.staff, "Appointment location or instructions changed. Review the updated booking.")] } } },
       } })), { session });
@@ -258,11 +264,12 @@ exports.review = async (req, res) => {
     if (item.status !== expected) v.fail("This record changed. Refresh and try again.", 409);
     const rejectionReason = status === "Rejected" ? v.text(req.body.rejectionReason, "Rejection reason", 2000) : undefined;
     if (status === "Completed" && item.date > new Date()) v.fail("An appointment cannot be completed before it starts", 409);
+    if (status === "In Progress" && item.date > new Date()) v.fail("An appointment cannot start before its scheduled time", 409);
     if (req.user.role === "student" && item.date <= new Date()) v.fail("Past bookings cannot be cancelled", 409);
     let slot;
     if (item.slot) {
       slot = await Slot.findOneAndUpdate({ _id: item.slot }, { $inc: { revision: 1 } }, { session, returnDocument: "after" });
-      if (status === "Approved" && (!slot || slot.deletedAt || ["Cancelled", "Closed", "Expired"].includes(publicStatus(slot)))) v.fail("This availability is no longer available", 409);
+      if (["Approved", "In Progress"].includes(status) && (!slot || slot.deletedAt || ["Cancelled", "Closed", "Expired"].includes(publicStatus(slot)))) v.fail("This availability is no longer available", 409);
     }
     if (status === "Approved" && !item.slot && item.date <= new Date()) v.fail("A past appointment cannot be approved", 409);
     item.status = status;

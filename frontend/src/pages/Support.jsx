@@ -10,7 +10,8 @@ import { RelatedNotificationDetails } from "./Notifications";
 
 const transitions = {
   Pending: ["Approved", "Rejected", "Cancelled"],
-  Approved: ["Completed", "Rejected", "Cancelled"],
+  Approved: ["In Progress", "Completed", "Rejected", "Cancelled"],
+  "In Progress": ["Completed", "Cancelled"],
   Cancelled: [], Completed: [], Rejected: [],
 };
 function BookingInformation({ item }) {

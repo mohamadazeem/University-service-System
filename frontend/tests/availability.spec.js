@@ -95,14 +95,10 @@ test("staff publishes, students book, admin reviews, staff edits and cancels wit
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("Appointment booked successfully. Awaiting staff approval.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Notifications", exact: true }).locator(".notification-count")).toHaveText("1");
-  await expect(page.locator(".appointment-card")).toContainText("1 of 2 spaces available");
+  await expect(page.locator(".appointment-card")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Already Booked", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Book appointment", exact: true })).toBeEnabled();
   await expect(page.getByLabel("My Appointments", { exact: true })).toContainText("Please advise on my service request.");
-  // The server rejects a duplicate even while another space remains.
-  await page.locator(".appointment-card").getByRole("button", { name: "Book Appointment", exact: true }).click();
-  await page.getByLabel("Reason", { exact: true }).fill("Duplicate attempt");
-  await page.getByRole("button", { name: "Confirm booking", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("already have a booking");
-  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await login(page, "second"); await discover(page);
   await page.locator(".appointment-card").getByRole("button", { name: "Book Appointment", exact: true }).click();
   await page.getByLabel("Reason", { exact: true }).fill("Second student booking");

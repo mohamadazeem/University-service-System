@@ -29,6 +29,7 @@
 .appointment-discovery h2, .my-appointments h2 { font-size: 20px; margin: 0; }
 .appointment-discovery .page-heading p, .my-appointments .page-heading p { margin: 5px 0 0; font-size: 13px; }
 .appointment-booking { padding: 22px; border-bottom: 1px solid var(--border); }
+.appointment-history-heading { margin: 0; padding: 18px 22px; background: var(--subtle); color: var(--heading); font-size: 14px; }
 .appointment-booking header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .appointment-booking h3 { margin: 0; font-size: 16px; }
 .appointment-booking p { font-size: 13px; }

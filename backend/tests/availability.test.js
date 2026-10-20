@@ -54,6 +54,7 @@ test("all students discover the same partially booked availability with backend 
   t.mock.method(Service, "find", () => ({ select: async () => [] }));
   t.mock.method(Slot, "find", filter => { filters.push(filter); return { populate() { return this; }, sort: async () => [record] }; });
   t.mock.method(Appointment, "aggregate", async () => [{ _id: record._id, total: 2, confirmed: 1, pending: 1 }]);
+  t.mock.method(Appointment, "find", () => ({ select: async () => [] }));
   for (const id of [owner, other, "333333333333333333333333"]) {
     await controller.list(true)({ user: { id, role: "student" }, query: {} }, { json: response => responses.push(response) });
   }
@@ -103,4 +104,66 @@ test("staff cannot delete another owner's availability", async t => {
   t.mock.method(Slot, "findOne", filter => { scope = filter; return { session: async () => null }; });
   await assert.rejects(controller.remove({ user: { id: owner, role: "staff" }, params: { id: other }, body: { expectedUpdatedAt: new Date().toISOString() } }, {}), error => error.status === 404);
   assert.equal(scope.staff, owner);
+});
+
+for (const status of ["Pending", "Approved", "In Progress", "Completed"]) test(`the same student cannot repeat a slot with a ${status} booking`, async t => {
+  const mongoose = require("mongoose"), User = require("../models/user");
+  const slot = new Slot({ staff: other, startsAt: new Date(Date.now() + 86400000), capacity: 10 });
+  t.mock.method(mongoose.connection, "transaction", async callback => callback({}));
+  t.mock.method(Slot, "findOneAndUpdate", async () => slot);
+  t.mock.method(User, "exists", () => ({ session: async () => ({ _id: other }) }));
+  t.mock.method(Appointment, "exists", filter => ({ session: async () => {
+    assert.equal(filter.student, owner); assert.equal(String(filter.slot), String(slot._id));
+    assert.ok(filter.status.$in.includes(status)); return { _id: other };
+  } }));
+  await assert.rejects(controller.book({ user: { id: owner, role: "student" }, body: { slot: String(slot._id), reason: "Repeat slot" } }, {}), error => error.status === 409 && /already have a booking/.test(error.message));
+});
+
+test("completed slots are excluded only for the attendee, and no longer block other availability", async t => {
+  const User = require("../models/user"), Service = require("../models/service");
+  const completedSlot = new Slot({ staff: other, startsAt: new Date(Date.now() + 86400000), capacity: 10 });
+  const differentSlot = new Slot({ staff: other, startsAt: new Date(Date.now() + 90000000), capacity: 10 });
+  t.mock.method(User, "find", () => ({ select: async () => [{ _id: other }] }));
+  t.mock.method(Service, "find", () => ({ select: async () => [] }));
+  t.mock.method(Appointment, "find", filter => ({ select: async () => filter.student === owner ? [{ slot: completedSlot._id, status: "Completed" }] : [] }));
+  t.mock.method(Slot, "find", filter => ({ populate() { return this; }, sort: async () => [completedSlot, differentSlot].filter(slot => !(filter._id?.$nin || []).some(id => String(id) === String(slot._id))) }));
+  t.mock.method(Appointment, "aggregate", async () => [{ _id: completedSlot._id, total: 1, confirmed: 1 }]);
+  const responses = [];
+  for (const id of [owner, other]) await controller.list(true)({ user: { id, role: "student" }, query: {} }, { json: result => responses.push(result) });
+  assert.deepEqual(responses[0].items.map(slot => String(slot._id)), [String(differentSlot._id)]);
+  assert.equal(responses[0].hasActiveAppointment, undefined);
+  assert.equal(responses[1].items.length, 2);
+  assert.equal(responses[1].items[0].remaining, 9);
+});
+
+test("only a student's own booked slot is marked Already Booked", async t => {
+  const User = require("../models/user"), Service = require("../models/service");
+  const slots = [1, 2].map(() => new Slot({ staff: other, startsAt: new Date(Date.now() + 86400000), capacity: 10 }));
+  t.mock.method(User, "find", () => ({ select: async () => [{ _id: other }] }));
+  t.mock.method(Service, "find", () => ({ select: async () => [] }));
+  t.mock.method(Appointment, "find", filter => ({ select: async () => filter.student === owner ? [{ slot: slots[0]._id, status: "Pending" }] : [] }));
+  t.mock.method(Slot, "find", () => ({ populate() { return this; }, sort: async () => slots }));
+  t.mock.method(Appointment, "aggregate", async () => [{ _id: slots[0]._id, total: 1 }]);
+  const responses = [];
+  for (const id of [owner, other]) await controller.list(true)({ user: { id, role: "student" }, query: {} }, { json: response => responses.push(response) });
+  assert.deepEqual(responses[0].items.map(slot => slot.alreadyBooked), [true, false]);
+  assert.deepEqual(responses[1].items.map(slot => slot.alreadyBooked), [false, false]);
+});
+
+for (const terminal of ["Pending", "Approved", "In Progress", "Completed", "Cancelled", "Rejected"]) test(`${terminal} history permits a different appointment without deleting the old record`, async t => {
+  const mongoose = require("mongoose"), User = require("../models/user");
+  const session = {}, oldSlot = new mongoose.Types.ObjectId();
+  const slot = new Slot({ staff: other, startsAt: new Date(Date.now() + 86400000), capacity: 10 });
+  const history = { slot: oldSlot, student: owner, status: terminal };
+  t.mock.method(mongoose.connection, "transaction", async callback => callback(session));
+  t.mock.method(User, "updateOne", async () => ({ matchedCount: 1 }));
+  t.mock.method(User, "exists", () => ({ session: async () => ({ _id: other }) }));
+  t.mock.method(Slot, "findOneAndUpdate", async () => slot);
+  t.mock.method(Appointment, "exists", filter => ({ session: async () => filter.status.$in.includes(history.status) && (!filter.slot || String(filter.slot) === String(history.slot)) ? history : null }));
+  t.mock.method(Appointment, "countDocuments", () => ({ session: async () => 0 }));
+  t.mock.method(Appointment, "create", async (records, options) => { assert.equal(options.session, session); return records.map(record => new Appointment(record)); });
+  t.mock.method(require("../utils/notifications"), "flush", async () => {});
+  let response;
+  await controller.book({ user: { id: owner, role: "student" }, body: { slot: String(slot._id), reason: "Another appointment" } }, { status(code) { assert.equal(code, 201); return this; }, json(result) { response = result; } });
+  assert.equal(response.appointment.status, "Pending"); assert.equal(history.status, terminal);
 });

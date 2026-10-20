@@ -42,6 +42,10 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     assert.equal((await call("/staff/appointment-slots/" + compactResult.slot._id, staff, "PATCH", { status: "Published", expectedUpdatedAt: relocated.slot.updatedAt })).code, 200);
     assert.equal((await call("/appointments", students[0], "POST", { slot: compactResult.slot._id, reason: "Compact booking" })).code, 201);
     assert.equal((await call("/appointments", students[1], "POST", { slot: compactResult.slot._id, reason: "Must not double book" })).code, 409);
+    const compactBooking = await Appointment.findOne({ slot: compactResult.slot._id });
+    assert.equal((await call("/staff/bookings/" + compactBooking._id, staff, "PATCH", { status: "Cancelled", expectedStatus: "Pending", expectedUpdatedAt: compactBooking.updatedAt.toISOString() })).code, 200);
+    const compactAfterCancellation = await Slot.findById(compactResult.slot._id);
+    assert.equal((await call("/staff/appointment-slots/" + compactResult.slot._id, staff, "PATCH", { action: "cancel", expectedUpdatedAt: compactAfterCancellation.updatedAt.toISOString() })).code, 200);
     assert.equal((await call("/staff/appointment-slots", null)).code, 401);
     assert.equal((await call("/staff/appointment-slots", students[0], "POST", body)).code, 403);
     assert.equal((await call("/staff/appointment-slots", pending, "POST", body)).code, 401);
@@ -141,6 +145,7 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     assert.equal((await call("/appointments", winner, "POST", { slot: String(legacyId), reason: "Legacy compatibility" })).code, 201);
     const legacy = await Appointment.findOne({ slot: legacyId });
     assert.equal(String(legacy.reservedSlot), String(legacyId));
+    assert.equal((await call("/staff/bookings/" + legacy._id, other, "PATCH", { status: "Cancelled", expectedStatus: "Pending", expectedUpdatedAt: legacy.updatedAt.toISOString() })).code, 200);
 
     // A configurable group is shared by all accounts and survives partial booking.
     const groupStart = new Date(+start + 10 * 86400000);
@@ -181,6 +186,8 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     assert.equal((await call("/appointments", students[1], "POST", { slot: String(ongoing._id), reason: "After end" })).code, 409);
     assert.equal((await call("/appointments/availability?q=" + encodeURIComponent(prefix + " ongoing"), students[1])).total, 0);
     assert.equal((await call("/staff/appointment-slots/" + ongoing._id, other)).slot.status, "Expired");
+    const ended = await call("/staff/appointment-slots/" + ongoing._id, other);
+    assert.equal((await call("/staff/appointment-slots/" + ongoing._id, other, "DELETE", { expectedUpdatedAt: ended.slot.updatedAt })).code, 200);
 
     const singleStart = new Date(+start + 11 * 86400000);
     const single = await call("/staff/appointment-slots", staff, "POST", { ...compact, status: "Published", startsAt: singleStart.toISOString(), endsAt: new Date(+singleStart + 3600000).toISOString() });
@@ -188,6 +195,47 @@ test("availability: transaction-safe capacity, schedules, student cancellation, 
     const singleRace = await Promise.all(students.slice(0, 2).map(student => call("/appointments", student, "POST", { slot: single.slot._id, reason: "Single appointment race" })));
     assert.deepEqual(singleRace.map(result => result.code).sort(), [201, 409]);
     assert.equal(await Appointment.countDocuments({ slot: single.slot._id, status: "Pending" }), 1);
+
+    // Different slots remain bookable concurrently for the same student.
+    const policyA = await account("student", "policyA"), policyB = await account("student", "policyB");
+    const policySlots = [];
+    for (const day of [12, 13, 14]) {
+      const instant = new Date(+start + day * 86400000);
+      const result = await call("/staff/appointment-slots", staff, "POST", { ...compact, title: prefix + " policy " + day, capacity: 10, status: "Published", startsAt: instant.toISOString(), endsAt: new Date(+instant + 3600000).toISOString() });
+      assert.equal(result.code, 201); owned.slots.push(result.slot._id); policySlots.push(result.slot);
+    }
+    const policyRace = await Promise.all(policySlots.slice(0, 2).map(slot => call("/appointments", policyA, "POST", { slot: slot._id, reason: "One active across services" })));
+    assert.deepEqual(policyRace.map(result => result.code).sort(), [201, 201]);
+    const attended = policySlots[policyRace.findIndex(result => result.code === 201)];
+    const alternative = policySlots.find(slot => slot._id !== attended._id);
+    assert.equal(await Appointment.countDocuments({ student: policyA.id, status: "Pending" }), 2);
+    const sameSlotRace = await Promise.all([1, 2].map(() => call("/appointments", policyA, "POST", { slot: policySlots[2]._id, reason: "Concurrent duplicate of third slot" })));
+    assert.deepEqual(sameSlotRace.map(result => result.code).sort(), [201, 409]);
+    assert.equal(await Appointment.countDocuments({ student: policyA.id, status: "Pending" }), 3);
+    const aView = await call("/appointments/availability?q=" + prefix, policyA);
+    assert.equal(aView.hasActiveAppointment, undefined);
+    assert.ok(aView.items.some(slot => slot._id === attended._id && slot.alreadyBooked));
+    assert.ok((await call("/appointments/availability?q=" + prefix, policyB)).items.some(slot => slot._id === attended._id && slot.remaining === 9));
+    let policyBooking = await Appointment.findOne({ student: policyA.id, slot: attended._id });
+    assert.equal((await call("/staff/bookings/" + policyBooking._id, staff, "PATCH", { status: "Approved", expectedStatus: "Pending", expectedUpdatedAt: policyBooking.updatedAt.toISOString() })).code, 200);
+    assert.equal((await call("/appointments", policyA, "POST", { slot: attended._id, reason: "Approved duplicate" })).code, 409);
+    // Simulate the appointment's scheduled time arriving without waiting days.
+    const arrived = new Date(Date.now() - 60000);
+    await Slot.updateOne({ _id: attended._id }, { $set: { startsAt: arrived, endsAt: new Date(Date.now() + 3600000) } });
+    await Appointment.updateOne({ _id: policyBooking._id }, { $set: { date: arrived } });
+    policyBooking = await Appointment.findById(policyBooking._id);
+    assert.equal((await call("/staff/bookings/" + policyBooking._id, staff, "PATCH", { status: "In Progress", expectedStatus: "Approved", expectedUpdatedAt: policyBooking.updatedAt.toISOString() })).code, 200);
+    assert.equal((await call("/appointments", policyA, "POST", { slot: attended._id, reason: "In progress duplicate" })).code, 409);
+    policyBooking = await Appointment.findById(policyBooking._id);
+    assert.equal((await call("/staff/bookings/" + policyBooking._id, staff, "PATCH", { status: "Completed", expectedStatus: "In Progress", expectedUpdatedAt: policyBooking.updatedAt.toISOString() })).code, 200);
+    const completedView = await call("/appointments/availability?q=" + prefix, policyA);
+    assert.equal(completedView.hasActiveAppointment, undefined);
+    assert.ok(!completedView.items.some(slot => slot._id === attended._id));
+    assert.ok(completedView.items.some(slot => slot._id === alternative._id));
+    assert.ok((await call("/appointments", policyA)).items.some(item => item._id === String(policyBooking._id) && item.status === "Completed"));
+    assert.equal((await call("/appointments", policyA, "POST", { slot: attended._id, reason: "Cannot repeat attended slot" })).code, 409);
+    assert.equal((await call("/appointments", policyB, "POST", { slot: attended._id, reason: "Group remains available to others" })).code, 201);
+    assert.equal(await Appointment.countDocuments({ student: policyA.id }), 3);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
     if (mongoose.connection.readyState === 1) {

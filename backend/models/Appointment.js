@@ -36,7 +36,7 @@ const appointmentSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Completed", "Cancelled"],
+      enum: ["Pending", "Approved", "In Progress", "Rejected", "Completed", "Cancelled"],
       default: "Pending",
     },
   },
@@ -47,5 +47,6 @@ const appointmentSchema = new mongoose.Schema(
 
 appointmentSchema.index({ slot: 1, student: 1 }, { unique: true, partialFilterExpression: { activeReservation: true } });
 appointmentSchema.index({ slot: 1, status: 1 });
+appointmentSchema.index({ student: 1, status: 1 });
 appointmentSchema.index({ staff: 1, status: 1, date: 1 });
 module.exports = mongoose.model("Appointment", appointmentSchema);
