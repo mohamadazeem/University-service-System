@@ -74,6 +74,21 @@
 .staff-dashboard .badge-completed { color: var(--success-text); background: var(--success-bg); }
 .staff-footer { padding: 16px 34px 24px; display: flex; justify-content: space-between; gap: 15px; color: var(--muted); font-size: 11px; }
 .staff-content > .page { max-width: 900px; margin: 0; padding: 0; width: 100%; }
+.staff-shell .staff-content:has(> .profile-page) { padding-top: 40px; }
+.staff-shell .staff-content > .page.profile-page { max-width: 900px; margin: 0 auto; }
+.profile-page > .panel { padding: 36px; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 6px 24px #1226400a; }
+.profile-page .profile-heading { flex-direction: column; gap: 14px; text-align: center; margin-bottom: 30px; }
+.profile-page .profile-heading > div { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.profile-page .profile-heading .eyebrow { margin: 0 0 8px; }
+.profile-page .profile-heading h1 { margin: 0; }
+.profile-page .detail-list { grid-template-columns: 150px minmax(0, 1fr); gap: 18px 24px; margin: 0; padding: 26px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.profile-page .detail-list dt, .profile-page .detail-list dd { min-width: 0; overflow-wrap: anywhere; }
+.profile-page .panel > .muted { margin: 24px 0 0; text-align: center; }
+@media (max-width: 600px) {
+  .profile-page > .panel { padding: 24px 20px; }
+  .profile-page .detail-list { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .profile-page .detail-list dd:not(:last-child) { margin-bottom: 14px; }
+}
 .staff-collapsed { --sidebar-width: 78px; }
 .staff-collapsed .staff-nav-label, .staff-collapsed .staff-nav-caption, .staff-collapsed .staff-collapse span { display: none; }
 .staff-collapsed .staff-sidebar { padding-left: 10px; padding-right: 10px; }

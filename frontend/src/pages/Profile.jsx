@@ -2,7 +2,7 @@ import useAuth from "../auth/useAuth";
 export default function Profile() {
   const { user } = useAuth();
   return (
-    <main className="page narrow-page">
+    <main className="page narrow-page profile-page">
       <section className="panel form-panel">
         <div className="profile-heading">
           <span className="avatar large-avatar">{user.name.slice(0, 1)}</span>
