@@ -22,6 +22,7 @@ const schema = new mongoose.Schema({
   instructions: { type: String, maxlength: 2000 },
   status: { type: String, enum: ["Draft", "Published", "Closed", "Cancelled"], default: "Published" },
   revision: { type: Number, default: 0 },
+  deletedAt: Date,
   location: { type: String, trim: true, maxlength: 300 },
   active: {
     type: Boolean,

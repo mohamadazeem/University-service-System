@@ -26,4 +26,5 @@ router.get("/appointment-slots", scheduling.list(false));
 router.post("/appointment-slots", scheduling.create(false));
 router.get("/appointment-slots/:id", scheduling.details);
 router.patch("/appointment-slots/:id", scheduling.update);
+router.delete("/appointment-slots/:id", scheduling.remove);
 module.exports = router;

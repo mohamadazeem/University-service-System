@@ -17,10 +17,10 @@ async function list(t, role, query = {}) {
 }
 test("admin availability includes all owners and past drafts with database booking counts", async t => {
   const { filter, response } = await list(t, "admin");
-  assert.deepEqual(filter, {});
+  assert.deepEqual(filter, { deletedAt: null });
   assert.equal(response.items[0].booked, 2);
   assert.equal(response.items[0].remaining, 1);
-  assert.equal(response.items[0].status, "Draft");
+  assert.equal(response.items[0].status, "Expired");
 });
 test("admin availability combines staff, service, date, publication and literal search filters", async t => {
   const { filter } = await list(t, "admin", { staff: other, service: owner, date: "2030-01-02", status: "Draft", q: "Advice.*" });
@@ -35,4 +35,72 @@ test("staff query cannot replace authenticated slot ownership", async t => {
 test("closed filter includes explicit Closed and legacy inactive availability", async t => {
   const { filter } = await list(t, "admin", { status: "Closed" });
   assert.deepEqual(filter.$and, [{ $or: [{ status: "Closed" }, { active: false, status: { $ne: "Cancelled" } }] }]);
+});
+
+test("expiry uses the end instant, includes the boundary and preserves legacy windows", () => {
+  const { endTime, status } = require("../utils/availabilityTime");
+  const slot = { startsAt: new Date("2030-01-02T03:30:00Z"), endsAt: new Date("2030-01-02T04:30:00Z"), status: "Published", active: true };
+  assert.equal(status(slot, new Date("2030-01-02T04:29:59Z")), "Published");
+  assert.equal(status(slot, slot.endsAt), "Expired");
+  assert.equal(status({ ...slot, status: "Cancelled", active: false }, slot.endsAt), "Cancelled");
+  assert.equal(endTime({ startsAt: slot.startsAt }).toISOString(), "2030-01-02T04:00:00.000Z");
+});
+
+test("all students discover the same partially booked availability with backend expiry filters", async t => {
+  const User = require("../models/user"), Service = require("../models/service");
+  const record = new Slot({ staff: owner, startsAt: new Date(Date.now() + 86400000), endsAt: new Date(Date.now() + 90000000), capacity: 10, status: "Published" });
+  const filters = [], responses = [];
+  t.mock.method(User, "find", () => ({ select: async () => [{ _id: owner }] }));
+  t.mock.method(Service, "find", () => ({ select: async () => [] }));
+  t.mock.method(Slot, "find", filter => { filters.push(filter); return { populate() { return this; }, sort: async () => [record] }; });
+  t.mock.method(Appointment, "aggregate", async () => [{ _id: record._id, total: 2, confirmed: 1, pending: 1 }]);
+  for (const id of [owner, other, "333333333333333333333333"]) {
+    await controller.list(true)({ user: { id, role: "student" }, query: {} }, { json: response => responses.push(response) });
+  }
+  for (const [index, response] of responses.entries()) {
+    assert.equal(response.items[0].remaining, 8);
+    assert.equal(response.items[0].confirmed, 1);
+    assert.equal(response.items[0].pending, 1);
+    assert.equal(filters[index].student, undefined);
+    assert.equal(filters[index].startsAt, undefined);
+    assert.equal(filters[index].deletedAt, null);
+    assert.ok(filters[index].$expr.$gt[1] instanceof Date);
+    assert.ok(response.serverNow);
+  }
+});
+
+test("deletion keeps booking history and atomically cancels reservations with durable student notices", async t => {
+  const mongoose = require("mongoose"), User = require("../models/user");
+  const record = new Slot({ staff: owner, startsAt: new Date(Date.now() + 86400000), capacity: 10 });
+  record.updatedAt = new Date();
+  const booking = new Appointment({ slot: record._id, student: other, staff: owner, date: record.startsAt, time: "09:00", reason: "Guidance", status: "Approved", activeReservation: true });
+  let scope, operations, response, saved = false;
+  const session = {};
+  t.mock.method(mongoose.connection, "transaction", async callback => callback(session));
+  t.mock.method(Slot, "findOne", filter => { scope = filter; return { session: async () => record }; });
+  t.mock.method(record, "save", async options => { assert.equal(options.session, session); saved = true; });
+  t.mock.method(User, "updateOne", async () => ({}));
+  t.mock.method(Appointment, "find", () => ({ select() { return this; }, session: async () => [booking] }));
+  t.mock.method(Appointment, "bulkWrite", async (items, options) => { operations = items; assert.equal(options.session, session); });
+  t.mock.method(require("../utils/notifications"), "flush", async () => {});
+  await controller.remove({ user: { id: owner, role: "staff" }, params: { id: String(record._id) }, body: { expectedUpdatedAt: record.updatedAt.toISOString() } }, { json: result => { response = result; } });
+  assert.equal(scope.staff, owner); assert.equal(scope.deletedAt, null);
+  assert.equal(saved, true); assert.ok(record.deletedAt); assert.equal(record.active, false);
+  assert.equal(record.status, "Cancelled");
+  assert.equal(operations.length, 1);
+  const update = operations[0].updateOne.update;
+  assert.deepEqual(update.$set, { status: "Cancelled", activeReservation: false });
+  assert.equal(update.$unset.reservedSlot, 1);
+  assert.equal(update.$push.history.status, "Cancelled");
+  assert.ok(update.$push.notificationEvents.$each.some(notice => String(notice.user) === other));
+  assert.match(response.message, /deleted/);
+});
+
+test("staff cannot delete another owner's availability", async t => {
+  const mongoose = require("mongoose");
+  let scope;
+  t.mock.method(mongoose.connection, "transaction", async callback => callback({}));
+  t.mock.method(Slot, "findOne", filter => { scope = filter; return { session: async () => null }; });
+  await assert.rejects(controller.remove({ user: { id: owner, role: "staff" }, params: { id: other }, body: { expectedUpdatedAt: new Date().toISOString() } }, {}), error => error.status === 404);
+  assert.equal(scope.staff, owner);
 });

@@ -9,9 +9,8 @@ const { tryFlush } = require("../utils/notifications");
 const { appointments: transitions } = require("../utils/supportWorkflow");
 const occupiedStatuses = ["Pending", "Approved", "Completed"];
 const slotScope = user => user.role === "staff" ? { staff: user.id } : {};
-const endTime = slot => slot.endsAt || new Date(new Date(slot.startsAt).getTime() + 30 * 60000);
+const { endTime, unexpired, expired, status: publicStatus } = require("../utils/availabilityTime");
 const capacity = slot => slot.capacity || 1;
-const publicStatus = slot => slot.status === "Cancelled" ? "Cancelled" : slot.active === false ? "Closed" : slot.status || "Published";
 const slotPopulate = [{ path: "staff", select: "name department" }, { path: "service", select: "name department active" }];
 async function notifyStudents(students) {
   const unique = [...new Set(students)];
@@ -94,18 +93,27 @@ exports.create = legacy => async (req, res) => {
 };
 async function enriched(items) {
   if (!items.length) return [];
-  const counts = await Appointment.aggregate([{ $match: { slot: { $in: items.map(item => item._id) }, status: { $in: occupiedStatuses } } }, { $group: { _id: "$slot", total: { $sum: 1 } } }]);
-  const byId = new Map(counts.map(item => [String(item._id), item.total]));
-  return items.map(item => ({ ...item.toObject(), endsAt: endTime(item), status: publicStatus(item), capacity: capacity(item), booked: byId.get(String(item._id)) || 0, remaining: Math.max(0, capacity(item) - (byId.get(String(item._id)) || 0)) }));
+  const counts = await Appointment.aggregate([{ $match: { slot: { $in: items.map(item => item._id) }, status: { $in: occupiedStatuses } } }, { $group: {
+    _id: "$slot", total: { $sum: 1 },
+    confirmed: { $sum: { $cond: [{ $in: ["$status", ["Approved", "Completed"]] }, 1, 0] } },
+    pending: { $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] } },
+  } }]);
+  const byId = new Map(counts.map(item => [String(item._id), item]));
+  return items.map(item => {
+    const count = byId.get(String(item._id));
+    return { ...item.toObject(), endsAt: endTime(item), status: publicStatus(item), capacity: capacity(item), booked: count?.total || 0, confirmed: count?.confirmed || 0, pending: count?.pending || 0, remaining: Math.max(0, capacity(item) - (count?.total || 0)) };
+  });
 }
 exports.list = discovery => async (req, res) => {
   const p = v.paging(req.query, ["startsAt", "createdAt", "title"]);
-  const filter = discovery ? { active: true, status: { $in: ["Published", null] }, startsAt: { $gt: new Date() } } : slotScope(req.user);
+  const now = new Date();
+  const filter = discovery ? { deletedAt: null, active: true, status: { $in: ["Published", null] }, ...unexpired(now) } : { ...slotScope(req.user), deletedAt: null };
   if (!discovery && req.query.status) {
-    const status = v.choice(req.query.status, ["Draft", "Published", "Closed", "Cancelled"], "status");
+    const status = v.choice(req.query.status, ["Draft", "Published", "Closed", "Cancelled", "Expired"], "status");
     if (status === "Closed") filter.$and = [{ $or: [{ status: "Closed" }, { active: false, status: { $ne: "Cancelled" } }] }];
-    else if (status === "Published") Object.assign(filter, { active: true, status: { $in: ["Published", null] } });
-    else filter.status = status;
+    else if (status === "Cancelled") filter.status = status;
+    else if (status === "Expired") Object.assign(filter, { active: { $ne: false }, status: { $nin: ["Cancelled", "Closed"] }, ...expired(now) });
+    else { filter.status = status === "Published" ? { $in: ["Published", null] } : status; Object.assign(filter, { active: { $ne: false }, ...unexpired(now) }); }
   }
   // Staff filters must never replace authenticated ownership.
   if (!discovery && req.user.role === "admin" && req.query.staff) filter.staff = v.id(req.query.staff);
@@ -132,15 +140,15 @@ exports.list = discovery => async (req, res) => {
       Slot.find(filter).populate(slotPopulate).sort(p.sort).skip(p.skip).limit(p.limit),
       Slot.countDocuments(filter),
     ]);
-    return res.json({ items: await enriched(records), total, page: p.page, pages: Math.ceil(total / p.limit) });
+    return res.json({ items: await enriched(records), total, page: p.page, pages: Math.ceil(total / p.limit), serverNow: new Date().toISOString() });
   }
   let items = await enriched(await Slot.find(filter).populate(slotPopulate).sort({ startsAt: 1, _id: 1 }));
-  if (discovery) items = items.filter(item => item.remaining > 0);
+  if (discovery) items = items.filter(item => item.remaining > 0 && item.status === "Published" && new Date(item.endsAt) > new Date());
   const total = items.length;
-  res.json({ items: items.slice(p.skip, p.skip + p.limit), total, page: p.page, pages: Math.ceil(total / p.limit) });
+  res.json({ items: items.slice(p.skip, p.skip + p.limit), total, page: p.page, pages: Math.ceil(total / p.limit), serverNow: new Date().toISOString() });
 };
 exports.details = async (req, res) => {
-  const slot = await Slot.findOne({ _id: v.id(req.params.id), ...slotScope(req.user) }).populate(slotPopulate);
+  const slot = await Slot.findOne({ _id: v.id(req.params.id), ...slotScope(req.user), deletedAt: null }).populate(slotPopulate);
   if (!slot) v.fail("Availability not found", 404);
   const bookings = await Appointment.find({ slot: slot._id }).populate("student", "name email studentId").sort({ createdAt: 1 });
   res.json({ slot: (await enriched([slot]))[0], bookings });
@@ -149,15 +157,16 @@ exports.update = async (req, res) => {
   v.body(req.body, ["expectedUpdatedAt", "action", "service", "title", "description", "startsAt", "endsAt", "building", "room", "location", "capacity", "durationMinutes", "instructions", "status"]);
   const affected = [];
   const slot = await transact(async session => {
-    const slot = await Slot.findOne({ _id: v.id(req.params.id), ...slotScope(req.user) }).session(session);
+    const slot = await Slot.findOne({ _id: v.id(req.params.id), ...slotScope(req.user), deletedAt: null }).session(session);
     if (!slot) v.fail("Availability not found", 404);
     observed(slot, req.body.expectedUpdatedAt);
-    if (["Cancelled", "Closed"].includes(publicStatus(slot))) v.fail("Closed or cancelled availability cannot be edited", 409);
+    const action = req.body.action === undefined ? "edit" : v.choice(req.body.action, ["cancel", "edit", "delete"], "action");
+    if (action !== "delete" && ["Cancelled", "Closed", "Expired"].includes(publicStatus(slot))) v.fail("Closed, cancelled or expired availability cannot be edited", 409);
     await scheduleLock(slot.staff, session);
-    const action = req.body.action === undefined ? "edit" : v.choice(req.body.action, ["cancel", "edit"], "action");
     const bookings = await Appointment.find({ slot: slot._id, status: { $in: occupiedStatuses } }).session(session);
-    if (action === "cancel") {
+    if (action === "cancel" || action === "delete") {
       slot.status = "Cancelled"; slot.active = false;
+      if (action === "delete") slot.deletedAt = new Date();
       const active = await Appointment.find({ slot: slot._id, status: { $in: ["Pending", "Approved"] } }).select("+notificationEvents").session(session);
       if (active.length) await Appointment.bulkWrite(active.map(booking => ({ updateOne: {
         filter: { _id: booking._id }, update: {
@@ -196,7 +205,12 @@ exports.update = async (req, res) => {
     return slot;
   });
   await notifyStudents(affected);
-  res.json({ message: slot.status === "Cancelled" ? "Availability and affected bookings cancelled." : "Availability updated successfully.", slot });
+  res.json({ message: slot.deletedAt ? "Availability deleted. Active bookings cancelled and affected students notified." : slot.status === "Cancelled" ? "Availability and affected bookings cancelled." : "Availability updated successfully.", slot });
+};
+exports.remove = async (req, res) => {
+  v.body(req.body, ["expectedUpdatedAt"]);
+  req.body = { ...req.body, action: "delete" };
+  return exports.update(req, res);
 };
 exports.closeLegacy = async (req, res) => {
   const slot = await transact(async session => {
@@ -213,7 +227,7 @@ exports.book = async (req, res) => {
   const appointment = await transact(async session => {
     // Updating the slot serializes capacity checks with all other booking, edit,
     // cancellation and close transactions without a separate cached seat count.
-    const slot = await Slot.findOneAndUpdate({ _id: id, active: true, status: { $in: ["Published", null] }, startsAt: { $gt: new Date() } }, { $inc: { revision: 1 } }, { session, returnDocument: "after" });
+    const slot = await Slot.findOneAndUpdate({ _id: id, deletedAt: null, active: true, status: { $in: ["Published", null] }, ...unexpired() }, { $inc: { revision: 1 } }, { session, returnDocument: "after" });
     if (!slot) v.fail("This appointment time is unavailable", 409);
     if (!(await User.exists({ _id: slot.staff, role: "staff", active: { $ne: false }, approvalStatus: "approved" }).session(session))) v.fail("This appointment time is unavailable", 409);
     if (slot.service && !(await Service.exists({ _id: slot.service, active: { $ne: false } }).session(session))) v.fail("This service is unavailable", 409);
@@ -244,13 +258,13 @@ exports.review = async (req, res) => {
     if (item.status !== expected) v.fail("This record changed. Refresh and try again.", 409);
     const rejectionReason = status === "Rejected" ? v.text(req.body.rejectionReason, "Rejection reason", 2000) : undefined;
     if (status === "Completed" && item.date > new Date()) v.fail("An appointment cannot be completed before it starts", 409);
-    if (status === "Approved" && item.date <= new Date()) v.fail("A past appointment cannot be approved", 409);
     if (req.user.role === "student" && item.date <= new Date()) v.fail("Past bookings cannot be cancelled", 409);
     let slot;
     if (item.slot) {
       slot = await Slot.findOneAndUpdate({ _id: item.slot }, { $inc: { revision: 1 } }, { session, returnDocument: "after" });
-      if (status === "Approved" && slot?.status === "Cancelled") v.fail("This availability was cancelled", 409);
+      if (status === "Approved" && (!slot || slot.deletedAt || ["Cancelled", "Closed", "Expired"].includes(publicStatus(slot)))) v.fail("This availability is no longer available", 409);
     }
+    if (status === "Approved" && !item.slot && item.date <= new Date()) v.fail("A past appointment cannot be approved", 409);
     item.status = status;
     if (rejectionReason) item.rejectionReason = rejectionReason;
     if (["Rejected", "Cancelled"].includes(status)) { item.reservedSlot = undefined; item.activeReservation = false; }

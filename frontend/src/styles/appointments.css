@@ -38,6 +38,8 @@
 .badge-draft { background: var(--subtle); color: var(--muted); }
 .badge-published { background: var(--success-bg); color: var(--success-text); }
 .badge-closed { background: var(--subtle); color: var(--muted); }
+.badge-expired { background: var(--subtle); color: var(--muted); }
+.compact-availability-form textarea { min-height: 60px; }
 .appointment-details dd { min-width: 0; overflow-wrap: anywhere; }
 .appointment-details small { display: block; color: var(--muted); margin-top: 4px; }
 .admin-appointments .page-heading > div:first-child { min-width: 0; }

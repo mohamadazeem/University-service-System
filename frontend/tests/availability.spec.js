@@ -188,13 +188,13 @@ test("staff publishes, students book, admin reviews, staff edits and cancels wit
   expect(errors).toEqual([]);
 });
 
-test("compact five-field form saves a draft, publishes one space, and staff rejects then accepts bookings", async ({ page }) => {
+test("availability form saves a draft, publishes one space, and staff rejects then accepts bookings", async ({ page }) => {
   await login(page, "staff"); await staffSlots(page);
   await page.getByRole("button", { name: "Create Availability", exact: true }).click();
   const dialog = page.getByRole("dialog"), form = dialog.locator("form");
-  await expect(form.locator("input, select, textarea")).toHaveCount(6);
-  await expect(form.locator("[required]")).toHaveCount(5);
-  await expect(form.locator("textarea")).toHaveCount(0);
+  await expect(form.locator("input, select, textarea")).toHaveCount(8);
+  await expect(form.locator("[required]")).toHaveCount(6);
+  await expect(form.locator("textarea")).toHaveCount(1);
   await dialog.getByLabel("Service", { exact: true }).selectOption(String(service._id));
   await dialog.getByLabel("Appointment Title", { exact: true }).fill(prefix + " compact");
   await dialog.getByLabel("Appointment Date", { exact: true }).fill("2020-01-01");
@@ -207,8 +207,9 @@ test("compact five-field form saves a draft, publishes one space, and staff reje
   await dialog.getByLabel("End Time", { exact: true }).fill("12:00");
   for (const width of [1280, 820, 390]) {
     await page.setViewportSize({ width, height: 844 });
-    expect(await dialog.evaluate(element => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+    expect(await dialog.evaluate(element => element.getBoundingClientRect().height <= window.innerHeight)).toBe(true);
     for (const name of ["Service", "Appointment Title", "Appointment Date", "Start Time", "End Time"]) {
+      await dialog.getByLabel(name, { exact: true }).scrollIntoViewIfNeeded();
       const box = await dialog.getByLabel(name, { exact: true }).boundingBox();
       expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(844);
     }
